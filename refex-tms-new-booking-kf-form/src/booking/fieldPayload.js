@@ -104,7 +104,13 @@ export function buildTravelFields(state) {
     FS_Search_Source: 'refex-tms-travel-booking',
   }
 
+  // Always keep submit-required FieldIds even when empty so validation errors are clear.
+  const REQUIRED = new Set(['Purpose_of_Travel', 'Travel_Mode'])
+
   return Object.fromEntries(
-    Object.entries(fields).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    Object.entries(fields).filter(([k, v]) => {
+      if (REQUIRED.has(k)) return v !== null && v !== undefined
+      return v !== '' && v !== null && v !== undefined
+    })
   )
 }

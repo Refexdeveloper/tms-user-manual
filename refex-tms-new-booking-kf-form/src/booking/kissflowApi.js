@@ -1,33 +1,39 @@
+/* global kf */
+
 /**
- * Kissflow Travel_Management_A02 process APIs
- * Dev:  development-refexgroup.kissflow.com / AcCMptp3yqcn
- * Live: refexgroup.kissflow.com / AcCMptlq60zH
+ * Kissflow Travel_Management_A02 APIs via kf.api (session auth).
  *
- * Flow: POST create draft → PUT/POST update fields → POST submit
+ * Flow: POST create draft → POST update fields (JSON body) → POST submit
+ * Dev host → development account; live host → production account.
+ *
+ * kf.api requires body: JSON.stringify(payload) — a plain object becomes "[object Object]".
  */
-import { kf } from '../sdk'
 
-export const APP_ID = 'Expense_and_Travel_Management_A00'
-export const PROCESS_ID = 'Travel_Management_A02'
+const APP_ID = 'Expense_and_Travel_Management_A00'
+const PROCESS_ID = 'Travel_Management_A02'
 
-export function resolveKissflowEnv() {
-  const host = typeof window !== 'undefined' ? window.location?.hostname || '' : ''
-  const isDev =
-    host.includes('development-') ||
-    host.includes('localhost') ||
-    host.includes('127.0.0.1')
-  if (isDev) {
-    return {
-      env: 'development',
-      domain: 'https://development-refexgroup.kissflow.com',
-      accountId: 'AcCMptp3yqcn',
-    }
-  }
-  return {
-    env: 'live',
-    domain: 'https://refexgroup.kissflow.com',
+const ENV = {
+  development: {
+    accountId: 'AcCMptp3yqcn',
+    hostIncludes: 'development-refexgroup.kissflow.com',
+  },
+  live: {
     accountId: 'AcCMptlq60zH',
+    hostIncludes: 'refexgroup.kissflow.com',
+  },
+}
+
+export function resolveAccountId() {
+  const host = String(globalThis?.location?.hostname || '').toLowerCase()
+  if (host.includes('development') || host.includes(ENV.development.hostIncludes)) {
+    return ENV.development.accountId
   }
+  const fromKf = globalThis?.kf?.account?._id
+  if (fromKf) return String(fromKf)
+  if (host.includes(ENV.live.hostIncludes) || host.endsWith('kissflow.com')) {
+    return ENV.live.accountId
+  }
+  return ENV.development.accountId
 }
 
 function qs() {
@@ -38,62 +44,93 @@ function processPath(accountId, suffix = '') {
   return `/process/2/${accountId}/${PROCESS_ID}${suffix}?${qs()}`
 }
 
+/**
+ * kf.api body MUST be a JSON string (Kissflow SDK docs).
+ * Always send a plain object payload as JSON.stringify(...).
+ */
 async function callApi(path, { method = 'GET', body } = {}) {
-  if (!kf?.api) {
-    throw new Error('Kissflow SDK not available. Open this Form inside Kissflow.')
+  const kfApi = globalThis?.kf?.api
+  if (typeof kfApi !== 'function') {
+    throw new Error('Kissflow SDK (kf.api) is not available')
   }
-  const options = { method }
-  if (body != null) options.body = body
-  return kf.api(path, options)
+
+  const options = {
+    method,
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+  }
+
+  if (body != null) {
+    options.body = typeof body === 'string' ? body : JSON.stringify(body)
+  }
+
+  try {
+    return await kfApi(path, options)
+  } catch (err) {
+    const msg =
+      err?.en_message ||
+      err?.message ||
+      err?.error ||
+      (typeof err === 'string' ? err : null) ||
+      `Kissflow ${method} failed`
+    const wrapped = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg))
+    wrapped.details = err
+    throw wrapped
+  }
 }
 
-export async function getAccountId() {
-  try {
-    const id = await kf.account?._id
-    if (id) return id
-  } catch {
-    /* fall through */
+/** Merge field map into one JSON object including _id (required by update API). */
+export function buildUpdatePayload(instanceId, fields = {}) {
+  return {
+    _id: instanceId,
+    ...(fields && typeof fields === 'object' ? fields : {}),
   }
-  return resolveKissflowEnv().accountId
 }
 
 /** 1) Create draft — returns _id + _activity_instance_id */
 export async function createDraft(seedFields = {}) {
-  const accountId = await getAccountId()
+  const accountId = resolveAccountId()
   const created = await callApi(processPath(accountId), {
     method: 'POST',
-    body: seedFields,
+    body: seedFields && Object.keys(seedFields).length ? seedFields : {},
   })
   return {
-    instanceId: created?._id || created?.Id,
-    activityInstanceId: created?._activity_instance_id || created?.ActivityInstanceId,
     raw: created,
+    instanceId: created?._id || created?.Id || created?.id,
+    activityInstanceId: created?._activity_instance_id || created?.ActivityInstanceId,
   }
 }
 
-/** 2) Update draft fields */
+/**
+ * 2) Update draft fields on current activity.
+ * POST /process/2/{account}/{process}/{instanceId}/{activityInstanceId}
+ * Body: {"_id":"<instanceId>", "Purpose_of_Travel":"Event", "Travel_Mode":"Air", ...}
+ * (PUT returns EndpointNotFound on this Kissflow path; POST is the working update verb.)
+ */
 export async function updateDraft(instanceId, activityInstanceId, fields) {
   if (!instanceId || !activityInstanceId) {
     throw new Error('Missing instanceId / activityInstanceId for update')
   }
-  const accountId = await getAccountId()
-  const body = { _id: instanceId, ...fields }
-  // Kissflow process item update
+  const accountId = resolveAccountId()
+  const payload = buildUpdatePayload(instanceId, fields)
   return callApi(processPath(accountId, `/${instanceId}/${activityInstanceId}`), {
-    method: 'PUT',
-    body,
+    method: 'POST',
+    body: payload,
   })
 }
 
-/** 3) Submit into workflow */
+/** 3) Submit draft into workflow — send same field JSON so required fields validate */
 export async function submitDraft(instanceId, activityInstanceId, fields = {}) {
   if (!instanceId || !activityInstanceId) {
     throw new Error('Missing instanceId / activityInstanceId for submit')
   }
-  const accountId = await getAccountId()
+  const accountId = resolveAccountId()
+  const payload = buildUpdatePayload(instanceId, fields)
   return callApi(processPath(accountId, `/${instanceId}/${activityInstanceId}/submit`), {
     method: 'POST',
-    body: fields,
+    body: payload,
   })
 }
 
@@ -101,22 +138,23 @@ export async function submitDraft(instanceId, activityInstanceId, fields = {}) {
 export async function saveAsDraft(fields, existing) {
   let instanceId = existing?.instanceId
   let activityInstanceId = existing?.activityInstanceId
-  let created = null
 
   if (!instanceId || !activityInstanceId) {
-    const draft = await createDraft({})
-    instanceId = draft.instanceId
-    activityInstanceId = draft.activityInstanceId
-    created = draft.raw
+    const created = await createDraft({})
+    instanceId = created.instanceId
+    activityInstanceId = created.activityInstanceId
+    if (!instanceId || !activityInstanceId) {
+      throw new Error('Create draft succeeded but ids were missing')
+    }
   }
 
   const updated = await updateDraft(instanceId, activityInstanceId, fields)
-  return { instanceId, activityInstanceId, created, updated, mode: 'draft' }
+  return { instanceId, activityInstanceId, updated, mode: 'draft' }
 }
 
-/** Create (if needed) → update → submit */
+/** Create (if needed) → update → submit (fields included on both update and submit) */
 export async function saveAndSubmit(fields, existing) {
   const draft = await saveAsDraft(fields, existing)
-  const submitted = await submitDraft(draft.instanceId, draft.activityInstanceId, {})
+  const submitted = await submitDraft(draft.instanceId, draft.activityInstanceId, fields)
   return { ...draft, submitted, mode: 'submitted' }
 }
