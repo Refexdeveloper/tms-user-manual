@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { kf } from '../sdk'
-import { FIELDS, PURPOSES, MODE_OPTIONS, FARE_CLASSES } from './constants.js'
+import { PURPOSES, MODE_OPTIONS, FARE_CLASSES } from './constants.js'
 import { formatMoney, searchAirports, searchFlights, todayIso, DEFAULT_FROM, DEFAULT_TO } from './api.js'
+import { buildTravelFields } from './fieldPayload.js'
+import { saveAsDraft, saveAndSubmit } from './kissflowApi.js'
 import AirlineLogo from './AirlineLogo.jsx'
 
 function advanceDays(dep) {
@@ -129,6 +131,7 @@ export default function NewBookingForm() {
   const [errors, setErrors] = useState([])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const [draftIds, setDraftIds] = useState(null)
 
   const PAGE = 8
   const lead = advanceDays(depDate)
@@ -169,88 +172,56 @@ export default function NewBookingForm() {
 
   useEffect(() => setPage(0), [stopFilter, airlineFilter])
 
-  const payload = useMemo(() => {
-    const f = selected || {}
-    const amount = Number(f.total || 0)
-    const modeLabel = mode === 'Air' ? 'Flight' : mode === 'Hotel' ? 'Hotel' : mode
-    const travelMode = mode === 'Air' ? 'Air' : mode
-    return {
-      [FIELDS.purpose]: purpose,
-      [FIELDS.purposeAlt]: purpose,
-      [FIELDS.region]: region,
-      [FIELDS.mode]: modeLabel,
-      [FIELDS.modeAlt]: travelMode,
-      [FIELDS.trip]: tripType,
-      [FIELDS.tripAlt]: tripType,
-      [FIELDS.dep]: depDate,
-      [FIELDS.depAlt]: depDate,
-      [FIELDS.ret]: retDate,
-      [FIELDS.from]: from?.city || '',
-      [FIELDS.to]: to?.city || '',
-      [FIELDS.fromAlt]: from?.city || '',
-      [FIELDS.toAlt]: to?.city || '',
-      [FIELDS.boarding]: from?.city || '',
-      [FIELDS.dest]: to?.city || '',
-      [FIELDS.amount]: amount || undefined,
-      [FIELDS.amountAlt]: amount || undefined,
-      [FIELDS.hotel]: hotel || mode === 'Hotel' ? 'Yes' : 'No',
-      [FIELDS.comments]: comments,
-      [FIELDS.city]: hotelCity || (mode === 'Hotel' ? to?.city : ''),
-      [FIELDS.checkin]: checkin,
-      [FIELDS.checkout]: checkout,
-      [FIELDS.pickup]: pickup,
-      [FIELDS.drop]: drop,
-      [FIELDS.requesterEmail]: user?.Email || '',
-      [FIELDS.empEmail]: user?.Email || '',
-      [FIELDS.employeeDetails]: user?.Name || '',
-      FS_Airline_Name: f.airline || '',
-      FS_Airline_Code: f.airlineCode || '',
-      FS_Flight_Number: f.flightNo || '',
-      FS_Selected_Flight_ID: f.id || '',
-      FS_Is_International: region === 'International' ? 'Yes' : 'No',
-      FS_Booking_Amount: amount || undefined,
-      FS_Currency_Code: f.currency || 'INR',
-      FS_Total_Fare: amount || undefined,
-      FS_From_Code: from?.code || '',
-      FS_From_City: from?.city || '',
-      FS_From_Airport_Name: from?.name || '',
-      FS_To_Code: to?.code || '',
-      FS_To_City: to?.city || '',
-      FS_To_Airport_Name: to?.name || '',
-      FS_Trip_Type: tripType,
-      FS_Departure_Date: depDate,
-      FS_Departure_Time: f.depart || '',
-      FS_Arrival_Time: f.arrive || '',
-      FS_Duration: f.duration || '',
-      FS_Stops: f.stops ?? '',
-      FS_Policy_Status: breached ? 'BREACHED' : 'Within policy',
-      FS_Policy_Insight_Message: breached
-        ? `This booking breaches the 15-day advance booking policy by ${Math.max(0, 15 - lead)} days.`
-        : 'Within 15-day advance booking policy.',
-    }
-  }, [
-    purpose,
-    region,
-    mode,
-    tripType,
-    depDate,
-    retDate,
-    from,
-    to,
-    selected,
-    hotel,
-    comments,
-    hotelCity,
-    checkin,
-    checkout,
-    pickup,
-    drop,
-    user,
-    breached,
-    lead,
-  ])
+  const formState = useMemo(
+    () => ({
+      purpose,
+      region,
+      mode,
+      tripType,
+      from,
+      to,
+      depDate,
+      retDate,
+      selected,
+      hotel,
+      cab,
+      hotelCity,
+      checkin,
+      checkout,
+      pickup,
+      drop,
+      comments,
+      user,
+      fareClass,
+      breached,
+      lead,
+    }),
+    [
+      purpose,
+      region,
+      mode,
+      tripType,
+      from,
+      to,
+      depDate,
+      retDate,
+      selected,
+      hotel,
+      cab,
+      hotelCity,
+      checkin,
+      checkout,
+      pickup,
+      drop,
+      comments,
+      user,
+      fareClass,
+      breached,
+      lead,
+    ]
+  )
 
-  function validate() {
+  function validate(forSubmit = true) {
     const next = []
     if (!purpose) next.push('Travel Purpose is required.')
     if (mode === 'Air') {
@@ -258,7 +229,7 @@ export default function NewBookingForm() {
       if (!to?.code) next.push('Choose To airport.')
       if (!depDate) next.push('Departure date is required.')
       if (tripType === 'roundTrip' && !retDate) next.push('Return date is required.')
-      if (!selected) next.push('Select a flight before submit.')
+      if (forSubmit && !selected) next.push('Select a flight before submit.')
     }
     if (mode === 'Hotel' || hotel) {
       if (!(hotelCity || to?.city)) next.push('Hotel city is required.')
@@ -314,22 +285,43 @@ export default function NewBookingForm() {
     setTo(from)
   }
 
-  async function saveToKissflow() {
-    const next = validate()
+  async function handleSaveDraft() {
+    const next = validate(false)
     setErrors(next)
     if (next.length) return
     setBusy(true)
     setStatus('')
     try {
-      const clean = Object.fromEntries(
-        Object.entries(payload).filter(([, v]) => v !== '' && v !== null && v !== undefined)
-      )
-      await kf.context.updateField(clean)
-      if (kf.context.submit) await kf.context.submit()
-      else if (kf.context.save) await kf.context.save()
-      setStatus('Saved to Travel_Management_A02. Click Kissflow Submit if still open.')
+      const fields = buildTravelFields(formState)
+      const result = await saveAsDraft(fields, draftIds)
+      setDraftIds({
+        instanceId: result.instanceId,
+        activityInstanceId: result.activityInstanceId,
+      })
+      setStatus(`Draft saved · ${result.instanceId}`)
     } catch (err) {
-      setStatus(err.message || 'Could not write Kissflow fields')
+      setStatus(err.message || 'Could not save draft')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleSubmit() {
+    const next = validate(true)
+    setErrors(next)
+    if (next.length) return
+    setBusy(true)
+    setStatus('')
+    try {
+      const fields = buildTravelFields(formState)
+      const result = await saveAndSubmit(fields, draftIds)
+      setDraftIds({
+        instanceId: result.instanceId,
+        activityInstanceId: result.activityInstanceId,
+      })
+      setStatus(`Submitted · ${result.instanceId}`)
+    } catch (err) {
+      setStatus(err.message || 'Could not submit travel request')
     } finally {
       setBusy(false)
     }
@@ -649,8 +641,11 @@ export default function NewBookingForm() {
         <button type="button" className="ghost" disabled={busy} onClick={() => setErrors([])}>
           Discard
         </button>
-        <button type="button" className="primary" disabled={busy} onClick={saveToKissflow}>
-          {busy ? 'Saving…' : 'Save to Kissflow & continue'}
+        <button type="button" className="ghost" disabled={busy} onClick={handleSaveDraft}>
+          {busy ? 'Saving…' : 'Save as Draft'}
+        </button>
+        <button type="button" className="primary" disabled={busy} onClick={handleSubmit}>
+          {busy ? 'Submitting…' : 'Submit'}
         </button>
       </footer>
     </div>
