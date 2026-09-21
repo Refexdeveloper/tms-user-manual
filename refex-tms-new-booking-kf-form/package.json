@@ -1,0 +1,25 @@
+{
+  "name": "refex-tms-new-booking-kf-form",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "zip": "node scripts/zip.js",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@kissflow/lowcode-client-sdk": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "engines": {
+    "node": "^18.0.0 || >=20.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "archiver": "^7.0.1",
+    "vite": "^5.1.6"
+  }
+}
