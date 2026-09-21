@@ -34,12 +34,13 @@ export function buildTravelFields(state) {
   const f = selected || {}
   const amount = Number(f.total || 0) || undefined
 
+  // Do NOT send initiate-step readonly fields (PermissionDeniedToUpdate):
+  // common_From, common_To, Mode_of_Transport, Eligible_Mode, Booking_Amount_1
   const fields = {
     Purpose_of_Travel: purpose || '',
     Purpose: purpose || '',
     DomesticInternational: region || 'Domestic',
     Travel_Mode: travelMode,
-    Mode_of_Transport: travelMode === 'Air' ? 'Flight' : travelMode,
     OnewayRound_tripNot_applicable: tripLabel,
     Travel_Type: tripType || 'oneWay',
     Trip_Type: tripLabel,
@@ -48,8 +49,6 @@ export function buildTravelFields(state) {
     Departure_Date: depDate || '',
     Boarding_from: from?.city || from?.display || '',
     Destination_to_1: to?.city || to?.display || '',
-    common_From: from?.city || '',
-    common_To: to?.city || '',
     Boarding: from?.city || '',
     Destination_1: to?.city || '',
     Is_accommodation_required: Boolean(hotel || mode === 'Hotel'),
@@ -65,10 +64,8 @@ export function buildTravelFields(state) {
     Requester_Email: user?.Email || '',
     emp_email_address: user?.Email || '',
     Employee_Details: user?.Name || '',
-    Booking_Amount_1: amount,
-    Eligible_Mode: fareClass || 'Economy',
 
-    // Flight selection FS_*
+    // Flight selection FS_* (amount lives here — Booking_Amount_1 is not writable)
     FS_Airline_Name: f.airline || '',
     FS_Airline_Code: f.airlineCode || '',
     FS_Flight_Number: f.flightNo || '',

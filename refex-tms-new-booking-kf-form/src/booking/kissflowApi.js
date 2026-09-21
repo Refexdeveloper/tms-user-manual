@@ -1,12 +1,22 @@
 /**
  * Kissflow Travel_Management_A02 APIs via kf.api (session auth).
  *
- * Save as Draft: POST create → POST update (all fields + _id)
- * Submit:        POST create → POST update → POST submit
+ * Save as Draft: create (if new) → update
+ * Submit (no draft yet): create → update → submit
+ * Submit (after Save Draft): submit only
  *
  * IMPORTANT: always call as window.kf.api(...) — never extract .api or `this` is lost
  * and you get: Cannot read properties of undefined (reading '_postMessageAsync').
  */
+
+/** Initiate-step fields Kissflow rejects with PermissionDeniedToUpdate */
+const READONLY_ON_INITIATE = new Set([
+  'common_From',
+  'common_To',
+  'Mode_of_Transport',
+  'Eligible_Mode',
+  'Booking_Amount_1',
+])
 
 const APP_ID = 'Expense_and_Travel_Management_A00'
 const PROCESS_ID = 'Travel_Management_A02'
@@ -81,12 +91,17 @@ async function callApi(path, { method = 'GET', body } = {}) {
   }
 }
 
-/** One JSON object: _id + all FieldIds to save */
+/** One JSON object: _id + writable FieldIds only */
 export function buildUpdatePayload(instanceId, fields = {}) {
-  return {
-    _id: instanceId,
-    ...(fields && typeof fields === 'object' ? fields : {}),
+  const safe = {}
+  if (fields && typeof fields === 'object') {
+    for (const [key, value] of Object.entries(fields)) {
+      if (READONLY_ON_INITIATE.has(key)) continue
+      if (key === '_id') continue
+      safe[key] = value
+    }
   }
+  return { _id: instanceId, ...safe }
 }
 
 /** 1) Create draft */
@@ -146,9 +161,26 @@ export async function saveAsDraft(fields, existing) {
   return { instanceId, activityInstanceId, updated, mode: 'draft' }
 }
 
-/** Submit: create (if needed) → update → submit */
+/**
+ * Submit button:
+ * - Already saved as draft → submit API only
+ * - Direct submit → create → update → submit
+ */
 export async function saveAndSubmit(fields, existing) {
-  const draft = await saveAsDraft(fields, existing)
+  const hasDraft = Boolean(existing?.instanceId && existing?.activityInstanceId)
+
+  if (hasDraft) {
+    const submitted = await submitDraft(existing.instanceId, existing.activityInstanceId, fields)
+    return {
+      instanceId: existing.instanceId,
+      activityInstanceId: existing.activityInstanceId,
+      submitted,
+      mode: 'submitted',
+      path: 'submit-only',
+    }
+  }
+
+  const draft = await saveAsDraft(fields, null)
   const submitted = await submitDraft(draft.instanceId, draft.activityInstanceId, fields)
-  return { ...draft, submitted, mode: 'submitted' }
+  return { ...draft, submitted, mode: 'submitted', path: 'create-update-submit' }
 }
