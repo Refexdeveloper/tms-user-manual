@@ -1,4 +1,4 @@
-/** Travel_Management_A02 / Travel Request-Refex FieldIds — kf.context.updateField */
+/** Travel_Management_A02 FieldIds */
 export const APP_ID = 'Expense_and_Travel_Management_A00'
 export const TRAVEL_PROCESS_ID = 'Travel_Management_A02'
 
@@ -21,16 +21,10 @@ export const FIELDS = {
   dest: 'Destination_to_1',
   amount: 'FS_Booking_Amount_1',
   amountAlt: 'Booking_Amount_1',
-  visa: 'Do_you_require_visa',
   hotel: 'Is_accommodation_required',
-  exception: 'Exception',
-  multi: 'Are_you_travelling_to_multiple_cities',
-  modify: 'Select_the_request_which_you_want_to_modify',
   comments: 'Comments',
   pickup: 'Pickup_Location',
   drop: 'Drop_Location',
-  pickupTime: 'Pickup_Time',
-  dropTime: 'Drop_Time',
   city: 'City',
   checkin: 'Checkin_Date',
   checkout: 'Checkout_Date',
@@ -42,12 +36,14 @@ export const FIELDS = {
 export const CLOUD_RUN = 'https://refex-tms-flightsearch-dhwffeu7pq-el.a.run.app'
 
 export const PURPOSES = ['Business trip', 'Event', 'Conference', 'Customer visit', 'Sales meet', 'Exhibition']
+
+/** Tiny mode chips — Ixigo / MMT style */
 export const MODE_OPTIONS = [
-  { id: 'Air', label: 'Air', icon: 'ri-flight-takeoff-line' },
-  { id: 'Train', label: 'Train', icon: 'ri-train-line' },
-  { id: 'Bus', label: 'Bus', icon: 'ri-bus-line' },
-  { id: 'Cab', label: 'Cab', icon: 'ri-taxi-line' },
+  { id: 'Air', label: 'Flights', icon: 'ri-flight-takeoff-line', accent: '#1E88E5' },
+  { id: 'Train', label: 'Trains', icon: 'ri-train-line', accent: '#0084AD' },
+  { id: 'Bus', label: 'Bus', icon: 'ri-bus-line', accent: '#F97316' },
+  { id: 'Cab', label: 'Cabs', icon: 'ri-taxi-line', accent: '#0F766E' },
+  { id: 'Hotel', label: 'Hotels', icon: 'ri-hotel-bed-line', accent: '#8B5CF6' },
 ]
-export const TIMES = ['Morning', 'Afternoon', 'Evening', 'Night', 'Any time']
-export const LINES = ['Refex', 'Venwind', 'Refex Green Mobility']
-export const ENTITIES = ['Refex Industries', 'Venwind Refex', 'Refex Green Mobility']
+
+export const FARE_CLASSES = ['Economy', 'Premium Economy', 'Business']

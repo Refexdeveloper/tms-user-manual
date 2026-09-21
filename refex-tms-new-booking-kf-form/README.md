@@ -1,29 +1,19 @@
-# Travel Request — Kissflow Form component
+# Travel Booking — Kissflow Form component
 
-**Priority 1:** Replace native Kissflow Travel Request fields with TMS-Refex UI, write to `Travel_Management_A02`.
+Ixigo / MakeMyTrip-style travel booking UI for Kissflow **Form** custom components.
+
+On **Save to Kissflow & continue**, fields write into process **`Travel_Management_A02`** via `kf.context.updateField`. Then use Kissflow **Submit** so the existing workflow runs.
 
 ## Upload
 
-```bash
-npm install
-npm run zip
-```
+1. `npm run zip`
+2. Kissflow → Custom components → **Form** → upload `refex-tms-new-booking-kf-form.zip`
+3. Place on Travel Request create form
 
-Upload `refex-tms-new-booking-kf-form.zip` as Kissflow custom component type **Form**, place on Travel Management create popup.
+## Features
 
-## Integration
-
-See [`../refex-tms/docs/KISSFLOW_INTEGRATION.md`](../refex-tms/docs/KISSFLOW_INTEGRATION.md).
-
-Writes fields via [`kf.context.updateField`](https://developers.kissflow.com/form/updatefield/).
-
-## Includes
-
-- Travel Request (purpose, domestic/intl, beneficiary, mode)
-- Flight search (Travolution Cloud Run — correct payload)
-- Hotel / Cab / Train / Bus request details
-- PM design system (Inter, `#1E88E5`, white cards)
-
-## Next (Travel Booking)
-
-Deep booking UX parity with Kissflow live screenshots (hotel inventory, cab options) — same FieldIds, extended UI.
+- Tiny mode chips: Flights / Trains / Bus / Cabs / Hotels
+- MMT-style FROM–TO–dates search strip + orange SEARCH
+- Airline logos, SELECT, filters, 15-day policy breach
+- + Hotel / + Cab add-ons
+- FieldIds for Travel_Management_A02 (`Travel_Mode`, `Purpose_of_Travel`, `FS_*`, …)

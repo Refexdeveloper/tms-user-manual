@@ -1,24 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { kf } from '../sdk'
-import { FIELDS, PURPOSES, MODE_OPTIONS, TIMES, LINES, ENTITIES } from './constants.js'
+import { FIELDS, PURPOSES, MODE_OPTIONS, FARE_CLASSES } from './constants.js'
 import { formatMoney, searchAirports, searchFlights, todayIso, DEFAULT_FROM, DEFAULT_TO } from './api.js'
-
-function initials(name) {
-  return String(name || 'U')
-    .split(' ')
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
-
-function daysBetween(from, to) {
-  if (!from || !to) return ''
-  const a = new Date(from)
-  const b = new Date(to)
-  const n = Math.round((b - a) / 86400000)
-  return Number.isFinite(n) && n >= 0 ? String(n) : ''
-}
+import AirlineLogo from './AirlineLogo.jsx'
 
 function advanceDays(dep) {
   if (!dep) return null
@@ -51,22 +35,7 @@ function mapFlight(o) {
   }
 }
 
-function YesNo({ label, value, onChange }) {
-  return (
-    <div className="yn">
-      <span>{label}</span>
-      <div className="yn-btns">
-        {['Yes', 'No'].map((opt) => (
-          <button key={opt} type="button" className={value === opt ? 'on' : ''} onClick={() => onChange(opt)}>
-            {opt}
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function PlaceField({ label, value, onChange, required }) {
+function AirportInput({ label, value, onChange }) {
   const [q, setQ] = useState(placeDisplay(value))
   const [opts, setOpts] = useState([])
   useEffect(() => setQ(placeDisplay(value)), [value])
@@ -86,26 +55,29 @@ function PlaceField({ label, value, onChange, required }) {
           }))
         )
       }
-    }, 220)
+    }, 200)
     return () => {
       ignore = true
       clearTimeout(t)
     }
   }, [q])
+
   return (
-    <label className="field">
-      <span>
-        {label}
-        {required ? ' *' : ''}
-      </span>
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="City or airport" />
+    <label className="ap-field">
+      <span className="ap-label">{label}</span>
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="City or airport"
+        autoComplete="off"
+      />
       {value?.code ? (
-        <em className="sub">
+        <em className="ap-sub">
           {value.code} · {value.name}
         </em>
       ) : null}
       {opts.length > 0 && (
-        <ul className="suggest">
+        <ul className="ap-suggest">
           {opts.map((o) => (
             <li key={o.code}>
               <button
@@ -131,55 +103,48 @@ function PlaceField({ label, value, onChange, required }) {
 
 export default function NewBookingForm() {
   const [user, setUser] = useState(null)
-  const [purpose, setPurpose] = useState('Business trip')
-  const [multi, setMulti] = useState('No')
   const [mode, setMode] = useState('Air')
-  const [eligible] = useState('Economy')
-  const [tripType, setTripType] = useState('oneWay')
+  const [purpose, setPurpose] = useState('Business trip')
   const [region, setRegion] = useState('Domestic')
-  const [visa, setVisa] = useState('No')
-  const [exception, setException] = useState('No')
-  const [venwind, setVenwind] = useState('No')
-  const [cab, setCab] = useState('No')
-  const [hotel, setHotel] = useState('No')
-  const [group, setGroup] = useState('No')
-  const [desk, setDesk] = useState('Yes')
+  const [tripType, setTripType] = useState('oneWay')
+  const [fareClass, setFareClass] = useState('Economy')
   const [from, setFrom] = useState(DEFAULT_FROM)
   const [to, setTo] = useState(DEFAULT_TO)
   const [depDate, setDepDate] = useState(todayIso())
   const [retDate, setRetDate] = useState('')
-  const [prefDep, setPrefDep] = useState('Morning')
-  const [prefRet, setPrefRet] = useState('Evening')
-  const [modifyId, setModifyId] = useState('')
-  const [requestId] = useState('Auto on submit')
-  const [comments, setComments] = useState('')
-  const [line, setLine] = useState('')
-  const [entity, setEntity] = useState('')
-  const [pickup, setPickup] = useState('')
-  const [drop, setDrop] = useState('')
-  const [pickupTime, setPickupTime] = useState('')
-  const [dropTime, setDropTime] = useState('')
+  const [hotel, setHotel] = useState(false)
+  const [cab, setCab] = useState(false)
   const [hotelCity, setHotelCity] = useState('')
   const [checkin, setCheckin] = useState('')
   const [checkout, setCheckout] = useState('')
-  const [legs, setLegs] = useState([
-    { travelDate: '', toDate: '', from: '', to: '', preferred: 'Morning' },
-    { travelDate: '', toDate: '', from: '', to: '', preferred: 'Morning' },
-  ])
+  const [pickup, setPickup] = useState('')
+  const [drop, setDrop] = useState('')
+  const [comments, setComments] = useState('')
   const [flights, setFlights] = useState([])
   const [selected, setSelected] = useState(null)
   const [page, setPage] = useState(0)
   const [searching, setSearching] = useState(false)
+  const [stopFilter, setStopFilter] = useState('all')
+  const [airlineFilter, setAirlineFilter] = useState('all')
   const [errors, setErrors] = useState([])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
-  const [stopFilter, setStopFilter] = useState('all')
-  const [airlineFilter, setAirlineFilter] = useState('all')
 
   const PAGE = 8
   const lead = advanceDays(depDate)
   const breached = lead != null && lead < 15
-  const travelDays = daysBetween(depDate, tripType === 'roundTrip' && retDate ? retDate : depDate)
+
+  useEffect(() => {
+    try {
+      kf.context.watchParams(() => {})
+    } catch {
+      /* local preview */
+    }
+    kf.user
+      ?.getUser?.()
+      .then(setUser)
+      .catch(() => {})
+  }, [])
 
   const airlines = useMemo(() => {
     const map = {}
@@ -193,7 +158,7 @@ export default function NewBookingForm() {
   const filtered = useMemo(() => {
     return flights.filter((f) => {
       if (stopFilter === '0' && f.stops !== 0) return false
-      if (stopFilter === '1' && f.stops < 1) return false
+      if (stopFilter === '1' && !(f.stops >= 1)) return false
       if (airlineFilter !== 'all' && f.airline !== airlineFilter) return false
       return true
     })
@@ -202,25 +167,19 @@ export default function NewBookingForm() {
   const pageItems = filtered.slice(page * PAGE, page * PAGE + PAGE)
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE))
 
-  useEffect(() => {
-    kf.context.watchParams(() => {})
-    kf.user.getUser().then(setUser).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    setPage(0)
-  }, [stopFilter, airlineFilter])
+  useEffect(() => setPage(0), [stopFilter, airlineFilter])
 
   const payload = useMemo(() => {
     const f = selected || {}
     const amount = Number(f.total || 0)
-    const modeLabel = mode === 'Air' ? 'Flight' : mode
+    const modeLabel = mode === 'Air' ? 'Flight' : mode === 'Hotel' ? 'Hotel' : mode
+    const travelMode = mode === 'Air' ? 'Air' : mode
     return {
       [FIELDS.purpose]: purpose,
       [FIELDS.purposeAlt]: purpose,
       [FIELDS.region]: region,
       [FIELDS.mode]: modeLabel,
-      [FIELDS.modeAlt]: mode,
+      [FIELDS.modeAlt]: travelMode,
       [FIELDS.trip]: tripType,
       [FIELDS.tripAlt]: tripType,
       [FIELDS.dep]: depDate,
@@ -230,23 +189,17 @@ export default function NewBookingForm() {
       [FIELDS.to]: to?.city || '',
       [FIELDS.fromAlt]: from?.city || '',
       [FIELDS.toAlt]: to?.city || '',
-      [FIELDS.amount]: amount,
-      [FIELDS.amountAlt]: amount,
-      [FIELDS.visa]: visa,
-      [FIELDS.hotel]: hotel,
-      [FIELDS.exception]: exception === 'Yes' ? 'Yes' : '',
-      [FIELDS.multi]: multi,
-      [FIELDS.modify]: modifyId,
-      [FIELDS.comments]: comments,
       [FIELDS.boarding]: from?.city || '',
       [FIELDS.dest]: to?.city || '',
-      [FIELDS.pickup]: pickup,
-      [FIELDS.drop]: drop,
-      [FIELDS.pickupTime]: pickupTime,
-      [FIELDS.dropTime]: dropTime,
-      [FIELDS.city]: hotelCity,
+      [FIELDS.amount]: amount || undefined,
+      [FIELDS.amountAlt]: amount || undefined,
+      [FIELDS.hotel]: hotel || mode === 'Hotel' ? 'Yes' : 'No',
+      [FIELDS.comments]: comments,
+      [FIELDS.city]: hotelCity || (mode === 'Hotel' ? to?.city : ''),
       [FIELDS.checkin]: checkin,
       [FIELDS.checkout]: checkout,
+      [FIELDS.pickup]: pickup,
+      [FIELDS.drop]: drop,
       [FIELDS.requesterEmail]: user?.Email || '',
       [FIELDS.empEmail]: user?.Email || '',
       [FIELDS.employeeDetails]: user?.Name || '',
@@ -255,13 +208,13 @@ export default function NewBookingForm() {
       FS_Flight_Number: f.flightNo || '',
       FS_Selected_Flight_ID: f.id || '',
       FS_Is_International: region === 'International' ? 'Yes' : 'No',
-      FS_Booking_Amount: amount,
+      FS_Booking_Amount: amount || undefined,
       FS_Currency_Code: f.currency || 'INR',
-      FS_Total_Fare: amount,
-      FS_From_Code: from?.code || f.fromCode || '',
+      FS_Total_Fare: amount || undefined,
+      FS_From_Code: from?.code || '',
       FS_From_City: from?.city || '',
       FS_From_Airport_Name: from?.name || '',
-      FS_To_Code: to?.code || f.toCode || '',
+      FS_To_Code: to?.code || '',
       FS_To_City: to?.city || '',
       FS_To_Airport_Name: to?.name || '',
       FS_Trip_Type: tripType,
@@ -271,28 +224,9 @@ export default function NewBookingForm() {
       FS_Duration: f.duration || '',
       FS_Stops: f.stops ?? '',
       FS_Policy_Status: breached ? 'BREACHED' : 'Within policy',
-      FS_Policy_Actual_Advance: lead != null ? String(lead) : '',
-      FS_Policy_Required_Amount: '15',
       FS_Policy_Insight_Message: breached
-        ? `This booking breaches the 15-day advance booking policy by ${Math.max(0, 15 - lead)} days. Fare impact tracking should be initiated for Finance/Admin review.`
+        ? `This booking breaches the 15-day advance booking policy by ${Math.max(0, 15 - lead)} days.`
         : 'Within 15-day advance booking policy.',
-      Eligible_Mode: eligible,
-      Preferred_Departure_Time: prefDep,
-      Preferred_Return_Time: prefRet,
-      Number_of_Travel_days: travelDays,
-      Do_you_require_a_cab_arrangement: cab,
-      Group_Travel: group,
-      Travel_booking_required_by_Travel_Desk: desk,
-      This_is_Venwind_Travel_Request_form: venwind,
-      Business_Line: line,
-      Entity: entity,
-      MC_Route_Summary:
-        multi === 'Yes'
-          ? legs
-              .filter((l) => l.from || l.to)
-              .map((l) => `${l.from || '?'}→${l.to || '?'} (${l.travelDate || ''})`)
-              .join(' | ')
-          : '',
     }
   }, [
     purpose,
@@ -304,82 +238,49 @@ export default function NewBookingForm() {
     from,
     to,
     selected,
-    visa,
     hotel,
-    exception,
-    multi,
-    modifyId,
     comments,
-    cab,
-    group,
-    desk,
-    venwind,
-    eligible,
-    prefDep,
-    prefRet,
-    travelDays,
-    breached,
-    lead,
-    line,
-    entity,
-    pickup,
-    drop,
-    pickupTime,
-    dropTime,
     hotelCity,
     checkin,
     checkout,
+    pickup,
+    drop,
     user,
-    legs,
+    breached,
+    lead,
   ])
 
   function validate() {
     const next = []
     if (!purpose) next.push('Travel Purpose is required.')
-    if (!mode) next.push('Travel Mode is required.')
-    if (!multi) next.push('Multiple cities is required.')
-    if (multi === 'No') {
-      if (!from?.city) next.push('Boarding (From) is required.')
-      if (!to?.city) next.push('Destination (To) is required.')
-      if (!depDate) next.push('Departure Date is required.')
-      if (tripType === 'roundTrip' && !retDate) next.push('Return Date is required for round trip.')
-      if (tripType === 'roundTrip' && retDate && depDate && retDate < depDate) {
-        next.push('Return Date cannot be before Departure Date.')
-      }
-      if (!prefDep) next.push('Preferred Departure Time is required.')
-      if (tripType === 'roundTrip' && !prefRet) next.push('Preferred Return Time is required.')
-    } else {
-      const filled = legs.filter((l) => l.travelDate || l.from || l.to)
-      if (!filled.length) next.push('Add at least one multi-city leg.')
-      filled.forEach((l, i) => {
-        if (!l.travelDate) next.push(`Leg ${i + 1}: Travel Date is required.`)
-        if (!l.toDate) next.push(`Leg ${i + 1}: To Date is required.`)
-        if (!l.from) next.push(`Leg ${i + 1}: Boarding (From) is required.`)
-        if (!l.to) next.push(`Leg ${i + 1}: Destination (To) is required.`)
-      })
+    if (mode === 'Air') {
+      if (!from?.code) next.push('Choose From airport.')
+      if (!to?.code) next.push('Choose To airport.')
+      if (!depDate) next.push('Departure date is required.')
+      if (tripType === 'roundTrip' && !retDate) next.push('Return date is required.')
+      if (!selected) next.push('Select a flight before submit.')
     }
-    if (mode === 'Air' && desk === 'No' && !selected) next.push('Select a flight, or set Travel Desk booking to Yes.')
-    if (region === 'International' && visa === 'Yes' && !comments) next.push('Add a comment when a visa is required.')
-    if (cab === 'Yes') {
-      if (!pickup) next.push('Pickup Location is required for cab.')
-      if (!drop) next.push('Drop Location is required for cab.')
-      if (!pickupTime) next.push('Pickup Time is required for cab.')
-    }
-    if (hotel === 'Yes') {
-      if (!hotelCity) next.push('Hotel city is required.')
+    if (mode === 'Hotel' || hotel) {
+      if (!(hotelCity || to?.city)) next.push('Hotel city is required.')
       if (!checkin) next.push('Check-in date is required.')
       if (!checkout) next.push('Check-out date is required.')
-      if (checkin && checkout && checkout < checkin) next.push('Check-out cannot be before check-in.')
+    }
+    if (mode === 'Cab' || cab) {
+      if (!pickup) next.push('Pickup location is required.')
+      if (!drop) next.push('Drop location is required.')
+    }
+    if ((mode === 'Train' || mode === 'Bus') && (!from?.city || !to?.city || !depDate)) {
+      next.push('From, To and date are required.')
     }
     return next
   }
 
   async function search() {
     const next = []
-    if (!from?.code) next.push('Choose a boarding airport.')
-    if (!to?.code) next.push('Choose a destination airport.')
-    if (!depDate) next.push('Departure Date is required.')
-    if (tripType === 'roundTrip' && !retDate) next.push('Return Date is required.')
+    if (!from?.code) next.push('Choose From airport.')
+    if (!to?.code) next.push('Choose To airport.')
+    if (!depDate) next.push('Departure date is required.')
+    if (tripType === 'roundTrip' && !retDate) next.push('Return date is required.')
     setErrors(next)
     if (next.length) return
     setSearching(true)
@@ -391,16 +292,16 @@ export default function NewBookingForm() {
         to,
         depDate,
         arrDate: tripType === 'roundTrip' ? retDate : '',
-        fareClass: eligible,
+        fareClass,
         domesticInternational: region,
       })
       const list = (res.options || []).map(mapFlight)
       setFlights(list)
-      setPage(0)
       setSelected(null)
       setStopFilter('all')
       setAirlineFilter('all')
-      setStatus(list.length ? `${list.length} flights found` : 'No flights for these dates.')
+      setPage(0)
+      setStatus(list.length ? `${list.length} flights` : 'No flights found')
     } catch (err) {
       setErrors([err.message || 'Flight search failed'])
     } finally {
@@ -413,21 +314,20 @@ export default function NewBookingForm() {
     setTo(from)
   }
 
-  function updateLeg(i, key, value) {
-    setLegs((prev) => prev.map((l, idx) => (idx === i ? { ...l, [key]: value } : l)))
-  }
-
-  async function save(submit) {
+  async function saveToKissflow() {
     const next = validate()
     setErrors(next)
     if (next.length) return
     setBusy(true)
     setStatus('')
     try {
-      await kf.context.updateField(payload)
-      if (submit && kf.context.submit) await kf.context.submit()
-      else if (submit && kf.context.save) await kf.context.save()
-      setStatus(submit ? 'Saved to Kissflow. Click Submit on the form if still open.' : 'Draft saved to Kissflow fields.')
+      const clean = Object.fromEntries(
+        Object.entries(payload).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+      )
+      await kf.context.updateField(clean)
+      if (kf.context.submit) await kf.context.submit()
+      else if (kf.context.save) await kf.context.save()
+      setStatus('Saved to Travel_Management_A02. Click Kissflow Submit if still open.')
     } catch (err) {
       setStatus(err.message || 'Could not write Kissflow fields')
     } finally {
@@ -436,247 +336,274 @@ export default function NewBookingForm() {
   }
 
   return (
-    <div className="book">
-      <header className="who">
-        <span className="avatar">{initials(user?.Name)}</span>
+    <div className="tb">
+      <header className="tb-hero">
         <div>
-          <strong>{user?.Name || 'Traveller'}</strong>
-          <small>{user?.Email || 'Requester auto-filled from Kissflow user'}</small>
+          <p className="tb-kicker">
+            <i className="ri-plane-line" /> Travel Booking
+          </p>
+          <h1>Book your trip</h1>
+          <p className="tb-sub">Writes to Kissflow Travel Request · Travel_Management_A02</p>
         </div>
+        {user?.Name && (
+          <div className="tb-user">
+            <span>{String(user.Name).split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase()}</span>
+            <div>
+              <strong>{user.Name}</strong>
+              <small>{user.Email}</small>
+            </div>
+          </div>
+        )}
       </header>
 
-      <section className="card">
-        <h2>Travel Request Form</h2>
-        <div className="grid4">
-          <label className="field">
-            <span>Travel Request ID</span>
-            <input value={requestId} readOnly />
-          </label>
-          <label className="field span2">
-            <span>Select the request which you want to modify</span>
-            <input value={modifyId} onChange={(e) => setModifyId(e.target.value)} placeholder="Search request ID" />
-          </label>
-        </div>
-        <div className="grid4">
-          <label className="field">
-            <span>Travel Purpose *</span>
-            <select value={purpose} onChange={(e) => setPurpose(e.target.value)}>
-              {PURPOSES.map((p) => (
-                <option key={p}>{p}</option>
+      {/* Tiny mode icons — Ixigo style */}
+      <nav className="tb-modes">
+        {MODE_OPTIONS.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            className={mode === m.id ? 'on' : ''}
+            style={{ '--accent': m.accent }}
+            onClick={() => setMode(m.id)}
+          >
+            <i className={m.icon} />
+            <span>{m.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      <section className="tb-card tb-meta">
+        <label>
+          <span>Purpose *</span>
+          <select value={purpose} onChange={(e) => setPurpose(e.target.value)}>
+            {PURPOSES.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Domestic / International *</span>
+          <select value={region} onChange={(e) => setRegion(e.target.value)}>
+            <option>Domestic</option>
+            <option>International</option>
+          </select>
+        </label>
+        {mode === 'Air' && (
+          <label>
+            <span>Class</span>
+            <select value={fareClass} onChange={(e) => setFareClass(e.target.value)}>
+              {FARE_CLASSES.map((c) => (
+                <option key={c}>{c}</option>
               ))}
             </select>
           </label>
-          <label className="field">
-            <span>Travelling to multiple cities? *</span>
-            <select value={multi} onChange={(e) => setMulti(e.target.value)}>
-              <option>No</option>
-              <option>Yes</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Travel Mode *</span>
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              {MODE_OPTIONS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Eligible Mode</span>
-            <input value={eligible} readOnly />
-          </label>
-        </div>
-
-        <div className="mode-tiny">
-          {MODE_OPTIONS.map((m) => (
-            <button key={m.id} type="button" className={mode === m.id ? 'on' : ''} onClick={() => setMode(m.id)}>
-              <i className={m.icon} />
-              <span>{m.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="grid3">
-          <fieldset className="radios">
-            <legend>Trip Type *</legend>
-            {[
-              ['oneWay', 'One way'],
-              ['roundTrip', 'Round trip'],
-              ['multiCity', 'Multi city'],
-            ].map(([id, label]) => (
-              <label key={id}>
-                <input type="radio" name="trip" checked={tripType === id} onChange={() => setTripType(id)} /> {label}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="radios">
-            <legend>Domestic / International *</legend>
-            {['Domestic', 'International'].map((id) => (
-              <label key={id}>
-                <input type="radio" name="region" checked={region === id} onChange={() => setRegion(id)} /> {id}
-              </label>
-            ))}
-          </fieldset>
-          <div className="stack">
-            <YesNo label="Do you require visa?" value={visa} onChange={setVisa} />
-            <YesNo label="Exceptional Case" value={exception} onChange={setException} />
-            <YesNo label="Venwind Travel Request" value={venwind} onChange={setVenwind} />
-          </div>
-        </div>
+        )}
       </section>
 
-      {multi === 'No' && (
-        <section className="card">
-          <h2>Route</h2>
-          <div className="grid3">
-            <PlaceField label="Boarding (From)" value={from} onChange={setFrom} required />
-            <PlaceField label="Destination (To)" value={to} onChange={setTo} required />
-            <label className="field">
-              <span>City Class</span>
-              <input value={region === 'International' ? 'International' : 'Metro'} readOnly />
-            </label>
-          </div>
-          <div className="grid4">
-            <label className="field">
-              <span>Departure Date *</span>
+      {/* MMT-style search widget */}
+      {(mode === 'Air' || mode === 'Train' || mode === 'Bus') && (
+        <section className="tb-card tb-search">
+          {mode === 'Air' && (
+            <div className="tb-trip">
+              {[
+                ['oneWay', 'One Way'],
+                ['roundTrip', 'Round Trip'],
+              ].map(([id, label]) => (
+                <button key={id} type="button" className={tripType === id ? 'on' : ''} onClick={() => setTripType(id)}>
+                  {label}
+                </button>
+              ))}
+              <span className="tb-policy">
+                <i className="ri-shield-check-line" /> Policy: book 15 days before departure
+              </span>
+            </div>
+          )}
+
+          <div className="tb-route">
+            <AirportInput label="FROM" value={from} onChange={setFrom} />
+            <button type="button" className="tb-swap" onClick={swap} aria-label="Swap">
+              <i className="ri-arrow-left-right-line" />
+            </button>
+            <AirportInput label="TO" value={to} onChange={setTo} />
+            <label className="ap-field">
+              <span className="ap-label">DEPARTURE</span>
               <input type="date" value={depDate} onChange={(e) => setDepDate(e.target.value)} />
             </label>
-            <label className="field">
-              <span>Return Date{tripType === 'roundTrip' ? ' *' : ''}</span>
-              <input type="date" value={retDate} onChange={(e) => setRetDate(e.target.value)} />
-            </label>
-            <label className="field">
-              <span>Number of travel days</span>
-              <input value={travelDays || '—'} readOnly />
-            </label>
-            <label className="field">
-              <span>Boarding From</span>
-              <input value={from?.city || ''} readOnly />
-            </label>
+            {mode === 'Air' && tripType === 'roundTrip' && (
+              <label className="ap-field">
+                <span className="ap-label">RETURN</span>
+                <input type="date" value={retDate} onChange={(e) => setRetDate(e.target.value)} />
+              </label>
+            )}
+            {mode === 'Air' ? (
+              <button type="button" className="tb-search-btn" onClick={search} disabled={searching}>
+                {searching ? 'Searching…' : 'SEARCH'}
+              </button>
+            ) : null}
           </div>
-          <div className="grid3">
-            <label className="field">
-              <span>Preferred Departure Time *</span>
-              <select value={prefDep} onChange={(e) => setPrefDep(e.target.value)}>
-                {TIMES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Preferred Return Time{tripType === 'roundTrip' ? ' *' : ''}</span>
-              <select value={prefRet} onChange={(e) => setPrefRet(e.target.value)}>
-                {TIMES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>After work time</span>
-              <input value={prefDep === 'Evening' || prefDep === 'Night' ? 'Yes' : 'No'} readOnly />
-            </label>
-          </div>
-          <div className="yn-row">
-            <YesNo label="Cab arrangement?" value={cab} onChange={setCab} />
-            <YesNo label="Accommodation?" value={hotel} onChange={setHotel} />
-            <YesNo label="Group travel?" value={group} onChange={setGroup} />
-            <YesNo label="Travel Desk booking?" value={desk} onChange={setDesk} />
+
+          {mode === 'Air' && breached && lead != null && (
+            <p className="tb-warn">
+              This booking breaches the 15-day advance booking policy by {Math.max(0, 15 - lead)} days. Fare impact
+              tracking should be initiated for Finance/Admin review.
+            </p>
+          )}
+
+          {mode === 'Air' && (
+            <div className="tb-addons">
+              <label className="chip">
+                <input type="checkbox" checked={hotel} onChange={(e) => setHotel(e.target.checked)} />
+                <i className="ri-hotel-bed-line" /> + Hotel
+              </label>
+              <label className="chip">
+                <input type="checkbox" checked={cab} onChange={(e) => setCab(e.target.checked)} />
+                <i className="ri-taxi-line" /> + Cab
+              </label>
+            </div>
+          )}
+        </section>
+      )}
+
+      {mode === 'Air' && (
+        <section className="tb-results">
+          <aside className="tb-filters">
+            <h3>Filters</h3>
+            <div>
+              <strong>Stops</strong>
+              {[
+                ['all', 'All'],
+                ['0', 'Non-stop'],
+                ['1', '1+ stop'],
+              ].map(([id, label]) => (
+                <label key={id}>
+                  <input type="radio" checked={stopFilter === id} onChange={() => setStopFilter(id)} /> {label}
+                </label>
+              ))}
+            </div>
+            <div>
+              <strong>Airlines</strong>
+              <label>
+                <input type="radio" checked={airlineFilter === 'all'} onChange={() => setAirlineFilter('all')} /> All
+              </label>
+              {airlines.slice(0, 8).map(([name, count]) => (
+                <label key={name}>
+                  <input
+                    type="radio"
+                    checked={airlineFilter === name}
+                    onChange={() => setAirlineFilter(name)}
+                  />{' '}
+                  {name} ({count})
+                </label>
+              ))}
+              {!airlines.length && <em>Search to load filters</em>}
+            </div>
+          </aside>
+
+          <div className="tb-list">
+            <div className="tb-list-meta">
+              <span>
+                {from?.code || '—'} → {to?.code || '—'} · {filtered.length} options · INR
+              </span>
+              {filtered.length > 0 && (
+                <span>
+                  Showing {page * PAGE + 1}–{Math.min(filtered.length, (page + 1) * PAGE)} · Page {page + 1}/{pages}
+                </span>
+              )}
+            </div>
+
+            {!flights.length && !searching && (
+              <div className="tb-empty">
+                <i className="ri-flight-takeoff-line" />
+                <p>Search flights to view available options</p>
+              </div>
+            )}
+
+            <ul className="tb-flights">
+              {pageItems.map((f) => (
+                <li key={f.id}>
+                  <article className={selected?.id === f.id ? 'tb-flight on' : 'tb-flight'}>
+                    <div className="tb-air">
+                      <AirlineLogo code={f.airlineCode} name={f.airline} size={36} />
+                      <div>
+                        <strong>
+                          {f.airline} {f.flightNo}
+                        </strong>
+                        <button type="button" className="tb-link" onClick={() => setSelected(f)}>
+                          View details
+                        </button>
+                      </div>
+                    </div>
+                    <div className="tb-path">
+                      <div>
+                        <b>{f.depart}</b>
+                        <small>{from?.code}</small>
+                      </div>
+                      <div className="tb-mid">
+                        <span>{f.duration}</span>
+                        <i />
+                        <span>{f.stops === 0 ? 'Non-stop' : `${f.stops} stop`}</span>
+                      </div>
+                      <div>
+                        <b>{f.arrive}</b>
+                        <small>{to?.code}</small>
+                      </div>
+                    </div>
+                    <div className="tb-fare">
+                      <b>{formatMoney(f.total, f.currency)}</b>
+                      <button type="button" className="tb-select" onClick={() => setSelected(f)}>
+                        SELECT
+                      </button>
+                    </div>
+                  </article>
+                </li>
+              ))}
+            </ul>
+
+            {filtered.length > PAGE && (
+              <div className="tb-pager">
+                <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                  Previous
+                </button>
+                <button type="button" className="primary" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)}>
+                  Next
+                </button>
+              </div>
+            )}
+
+            {selected && (
+              <div className="tb-picked">
+                <AirlineLogo code={selected.airlineCode} name={selected.airline} size={28} />
+                <div>
+                  <strong>
+                    {selected.airline} {selected.flightNo} · {formatMoney(selected.total)}
+                  </strong>
+                  <small>
+                    {from?.code} {selected.depart} → {to?.code} {selected.arrive} ·{' '}
+                    {selected.stops === 0 ? 'Non-stop' : `${selected.stops} stop`}
+                  </small>
+                </div>
+                {breached && <em className="tb-badge">BREACHED</em>}
+              </div>
+            )}
           </div>
         </section>
       )}
 
-      {multi === 'Yes' && (
-        <section className="card">
-          <h2>Multiple Cities Travel Details — {region}</h2>
-          <div className="table-wrap">
-            <table className="legs">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Travel Date *</th>
-                  <th>To Date *</th>
-                  <th>Boarding (From) *</th>
-                  <th>Destination (To) *</th>
-                  <th>Preferred time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {legs.map((l, i) => (
-                  <tr key={i}>
-                    <td>{i + 1}</td>
-                    <td>
-                      <input type="date" value={l.travelDate} onChange={(e) => updateLeg(i, 'travelDate', e.target.value)} />
-                    </td>
-                    <td>
-                      <input type="date" value={l.toDate} onChange={(e) => updateLeg(i, 'toDate', e.target.value)} />
-                    </td>
-                    <td>
-                      <input value={l.from} onChange={(e) => updateLeg(i, 'from', e.target.value)} placeholder="From" />
-                    </td>
-                    <td>
-                      <input value={l.to} onChange={(e) => updateLeg(i, 'to', e.target.value)} placeholder="To" />
-                    </td>
-                    <td>
-                      <select value={l.preferred} onChange={(e) => updateLeg(i, 'preferred', e.target.value)}>
-                        {TIMES.map((t) => (
-                          <option key={t}>{t}</option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setLegs((p) => [...p, { travelDate: '', toDate: '', from: '', to: '', preferred: 'Morning' }])}
-          >
-            Add leg
-          </button>
-        </section>
-      )}
-
-      {cab === 'Yes' && (
-        <section className="card">
-          <h2>Cab arrangement</h2>
-          <div className="grid3">
-            <label className="field">
-              <span>Pickup Location *</span>
-              <input value={pickup} onChange={(e) => setPickup(e.target.value)} />
-            </label>
-            <label className="field">
-              <span>Drop Location *</span>
-              <input value={drop} onChange={(e) => setDrop(e.target.value)} />
-            </label>
-            <label className="field">
-              <span>Pickup Time *</span>
-              <input type="datetime-local" value={pickupTime} onChange={(e) => setPickupTime(e.target.value)} />
-            </label>
-            <label className="field">
-              <span>Drop Time</span>
-              <input type="datetime-local" value={dropTime} onChange={(e) => setDropTime(e.target.value)} />
-            </label>
-          </div>
-        </section>
-      )}
-
-      {hotel === 'Yes' && (
-        <section className="card">
-          <h2>Accommodation</h2>
-          <div className="grid3">
-            <label className="field">
+      {(hotel || mode === 'Hotel') && (
+        <section className="tb-card">
+          <h2>
+            <i className="ri-hotel-bed-line" /> Hotel
+          </h2>
+          <div className="tb-meta">
+            <label>
               <span>City *</span>
-              <input value={hotelCity} onChange={(e) => setHotelCity(e.target.value)} />
+              <input value={hotelCity} onChange={(e) => setHotelCity(e.target.value)} placeholder="City" />
             </label>
-            <label className="field">
+            <label>
               <span>Check-in *</span>
               <input type="date" value={checkin} onChange={(e) => setCheckin(e.target.value)} />
             </label>
-            <label className="field">
+            <label>
               <span>Check-out *</span>
               <input type="date" value={checkout} onChange={(e) => setCheckout(e.target.value)} />
             </label>
@@ -684,235 +611,46 @@ export default function NewBookingForm() {
         </section>
       )}
 
-      {mode === 'Air' && multi === 'No' && (
-        <section className="card search">
-          <div className="search-head">
-            <h2>
-              <i className="ri-flight-takeoff-line" /> Search Flights
-            </h2>
-            <span className="policy">Policy: book flights 15 days before departure</span>
-          </div>
-          <div className="trip-toggle">
-            <button type="button" className={tripType === 'oneWay' ? 'on' : ''} onClick={() => setTripType('oneWay')}>
-              One Way
-            </button>
-            <button type="button" className={tripType === 'roundTrip' ? 'on' : ''} onClick={() => setTripType('roundTrip')}>
-              Round Trip
-            </button>
-          </div>
-          <div className="route-row">
-            <div className="airport">
-              <small>FROM</small>
-              <strong>{from?.city || 'From'}</strong>
-              <em>
-                {from?.code} · {from?.name}
-              </em>
-            </div>
-            <button type="button" className="swap" onClick={swap} aria-label="Swap">
-              <i className="ri-arrow-left-right-line" />
-            </button>
-            <div className="airport">
-              <small>TO</small>
-              <strong>{to?.city || 'To'}</strong>
-              <em>
-                {to?.code} · {to?.name}
-              </em>
-            </div>
-            <label className="airport">
-              <small>DEPARTURE</small>
-              <input type="date" value={depDate} onChange={(e) => setDepDate(e.target.value)} />
+      {(cab || mode === 'Cab') && (
+        <section className="tb-card">
+          <h2>
+            <i className="ri-taxi-line" /> Cab
+          </h2>
+          <div className="tb-meta">
+            <label>
+              <span>Pickup *</span>
+              <input value={pickup} onChange={(e) => setPickup(e.target.value)} />
             </label>
-            {tripType === 'roundTrip' && (
-              <label className="airport">
-                <small>RETURN</small>
-                <input type="date" value={retDate} onChange={(e) => setRetDate(e.target.value)} />
-              </label>
-            )}
-            <button type="button" className="btn primary" onClick={search} disabled={searching}>
-              {searching ? 'Searching…' : 'Search'}
-            </button>
-          </div>
-          {breached && lead != null && (
-            <p className="warn">
-              This booking breaches the 15-day advance booking policy by {Math.max(0, 15 - lead)} days. Fare impact
-              tracking should be initiated for Finance/Admin review.
-            </p>
-          )}
-
-          <div className="search-body">
-            <aside className="filters">
-              <h3>Filters</h3>
-              <div>
-                <strong>Stops</strong>
-                <label>
-                  <input type="radio" checked={stopFilter === 'all'} onChange={() => setStopFilter('all')} /> All
-                </label>
-                <label>
-                  <input type="radio" checked={stopFilter === '0'} onChange={() => setStopFilter('0')} /> Non-stop
-                </label>
-                <label>
-                  <input type="radio" checked={stopFilter === '1'} onChange={() => setStopFilter('1')} /> 1+ stop
-                </label>
-              </div>
-              <div>
-                <strong>Airlines</strong>
-                <label>
-                  <input type="radio" checked={airlineFilter === 'all'} onChange={() => setAirlineFilter('all')} /> All
-                </label>
-                {airlines.slice(0, 8).map(([name, count]) => (
-                  <label key={name}>
-                    <input
-                      type="radio"
-                      checked={airlineFilter === name}
-                      onChange={() => setAirlineFilter(name)}
-                    />{' '}
-                    {name} ({count})
-                  </label>
-                ))}
-                {!airlines.length && <em>Search flights to load filters.</em>}
-              </div>
-            </aside>
-
-            <div className="results">
-              <div className="results-meta">
-                <span>
-                  {from?.code || '—'} → {to?.code || '—'} · {filtered.length} options · INR
-                </span>
-                {filtered.length > 0 && (
-                  <span>
-                    Showing {page * PAGE + 1}-{Math.min(filtered.length, (page + 1) * PAGE)} of {filtered.length} · Page{' '}
-                    {page + 1} of {pages}
-                  </span>
-                )}
-              </div>
-
-              {!flights.length && !searching && <p className="empty">Search flights to view available options.</p>}
-
-              <ul className="flights">
-                {pageItems.map((f) => (
-                  <li key={f.id}>
-                    <div className={selected?.id === f.id ? 'flight on' : 'flight'}>
-                      <div className="f-air">
-                        <span className="logo">{(f.airlineCode || f.airline || '?').slice(0, 2)}</span>
-                        <div>
-                          <strong>
-                            {f.airline} {f.flightNo}
-                          </strong>
-                          <button type="button" className="link" onClick={() => setSelected(f)}>
-                            View Flight Details
-                          </button>
-                        </div>
-                      </div>
-                      <div className="f-path">
-                        <div>
-                          <b>{f.depart}</b>
-                          <small>{from?.code}</small>
-                        </div>
-                        <div className="mid">
-                          <span>{f.duration}</span>
-                          <i />
-                          <span>{f.stops === 0 ? 'Non-stop' : `${f.stops} stop`}</span>
-                        </div>
-                        <div>
-                          <b>{f.arrive}</b>
-                          <small>{to?.code}</small>
-                        </div>
-                      </div>
-                      <div className="f-fare">
-                        <b>{formatMoney(f.total, f.currency)}</b>
-                        <button type="button" className="btn select" onClick={() => setSelected(f)}>
-                          Select
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-
-              {filtered.length > PAGE && (
-                <div className="pager">
-                  <button type="button" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
-                    Previous
-                  </button>
-                  <span>
-                    Page {page + 1} of {pages}
-                  </span>
-                  <button type="button" className="btn primary" disabled={page + 1 >= pages} onClick={() => setPage((p) => p + 1)}>
-                    Next
-                  </button>
-                </div>
-              )}
-
-              {selected && (
-                <div className="picked">
-                  <div>
-                    <strong>
-                      {selected.airline} {selected.flightNo} · {formatMoney(selected.total)}
-                    </strong>
-                    <small>
-                      {from?.code} {selected.depart} → {to?.code} {selected.arrive} ·{' '}
-                      {selected.stops === 0 ? 'Non-stop' : `${selected.stops} stop`} · {selected.duration}
-                    </small>
-                  </div>
-                  {breached && <em className="badge">BREACHED</em>}
-                  {breached && (
-                    <p className="stored">{filtered.length || flights.length} stored search options restored for Finance review.</p>
-                  )}
-                </div>
-              )}
-            </div>
+            <label>
+              <span>Drop *</span>
+              <input value={drop} onChange={(e) => setDrop(e.target.value)} />
+            </label>
           </div>
         </section>
       )}
 
-      <section className="card">
-        <h2>Comments</h2>
-        <div className="grid3">
-          <label className="field span2">
-            <span>L1 Manager comments</span>
-            <textarea rows={3} value={comments} onChange={(e) => setComments(e.target.value)} />
-          </label>
-          <div className="stack">
-            <label className="field">
-              <span>Business Line</span>
-              <select value={line} onChange={(e) => setLine(e.target.value)}>
-                <option value="">Select</option>
-                {LINES.map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Entity</span>
-              <select value={entity} onChange={(e) => setEntity(e.target.value)}>
-                <option value="">Select</option>
-                {ENTITIES.map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </div>
+      <section className="tb-card">
+        <label className="full">
+          <span>Comments</span>
+          <textarea rows={2} value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Optional notes for approvers" />
+        </label>
       </section>
 
       {errors.length > 0 && (
-        <ul className="errors">
+        <ul className="tb-errors">
           {errors.map((e) => (
             <li key={e}>{e}</li>
           ))}
         </ul>
       )}
-      {status && <p className="status">{status}</p>}
+      {status && <p className="tb-status">{status}</p>}
 
-      <footer className="actions">
-        <button type="button" className="btn" disabled={busy} onClick={() => save(false)}>
-          Save
-        </button>
-        <button type="button" className="btn" onClick={() => setErrors([])}>
+      <footer className="tb-actions">
+        <button type="button" className="ghost" disabled={busy} onClick={() => setErrors([])}>
           Discard
         </button>
-        <button type="button" className="btn primary" disabled={busy} onClick={() => save(true)}>
-          Submit
+        <button type="button" className="primary" disabled={busy} onClick={saveToKissflow}>
+          {busy ? 'Saving…' : 'Save to Kissflow & continue'}
         </button>
       </footer>
     </div>
