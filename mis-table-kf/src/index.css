@@ -1,17 +1,33 @@
 /* =========================
-   GLOBAL RESET
+   GLOBAL RESET — Project Management theme
 ========================= */
-   * {
+:root {
+  --bg-base: #f3f6fb;
+  --bg-accent: #eef4ff;
+  --card: #ffffff;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --primary: #1e88e5;
+  --primary-dark: #1565c0;
+  --accent: #2b5aed;
+  --table-text: #2c3e50;
+}
+
+* {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: Inter, "Segoe UI", sans-serif;
+  font-family: Inter, "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
 html, body {
   height: 100%;
   width: 100%;
-  background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+  background:
+    radial-gradient(1200px 600px at 0% 0%, #e8f1ff 0%, transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, #efeaff 0%, transparent 60%),
+    var(--bg-base);
+  color: var(--text-main);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -37,7 +53,7 @@ html, body {
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, rgba(255,255,255,0) 70%);
+  background: radial-gradient(circle, rgba(30, 136, 229, 0.18) 0%, rgba(255,255,255,0) 70%);
   z-index: -1;
 }
 
@@ -88,7 +104,7 @@ html, body {
 }
 
 .pill-tab.active {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #1E88E5 0%, #1565C0 100%);
   color: #ffffff;
   border: none;
   box-shadow: 0 8px 20px rgba(139, 92, 246, 0.35);
@@ -123,7 +139,7 @@ html, body {
   position: absolute;
   inset: 3px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #1E88E5 0%, #1565C0 100%);
   box-shadow: 0 6px 16px rgba(139, 92, 246, 0.25);
   transition: transform 260ms cubic-bezier(0.2, 0.9, 0.2, 1);
   pointer-events: none;
@@ -175,7 +191,7 @@ html, body {
 
 .sub-tab.active {
   background: #ede9fe;
-  color: #7c3aed;
+  color: #1565C0;
   border-color: #ddd6fe;
 }
 
@@ -385,7 +401,7 @@ td {
 }
 
 .btn-new-expense {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #1E88E5 0%, #1565C0 100%);
   color: #ffffff;
   border: none;
   padding: 10px 24px;

@@ -7,9 +7,9 @@ const APP_ID = 'Expense_and_Travel_Management_A00'
 const PAGE_SIZE = 2000
 const MAX_PAGES = 15
 const TABS = [
-    { key: 'travel', label: 'Travel Booking', short: 'Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_rCILSrY8KF', color: '#2879b6', glow: 'rgba(40,121,182,0.45)' },
-    { key: 'advance', label: 'Travel Advance', short: 'Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_J0C5lIdWCL', color: '#7dc244', glow: 'rgba(125,194,68,0.45)' },
-    { key: 'expense', label: 'Travel Expense', short: 'Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_E4xarw8lLE', color: '#ee6a31', glow: 'rgba(238,106,49,0.45)' },
+    { key: 'travel', label: 'Travel Booking', short: 'Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_rCILSrY8KF', color: '#1E88E5', glow: 'rgba(30,136,229,0.45)' },
+    { key: 'advance', label: 'Travel Advance', short: 'Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_J0C5lIdWCL', color: '#0084AD', glow: 'rgba(0,132,173,0.45)' },
+    { key: 'expense', label: 'Travel Expense', short: 'Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_E4xarw8lLE', color: '#F97316', glow: 'rgba(249,115,22,0.45)' },
 ]
 
 /** Same parent views as mis-table: Drafts live under My Items → Draft. */
@@ -28,6 +28,77 @@ const MY_ITEMS_STATUSES = [
 ]
 
 const HIDDEN_COLUMNS = ['Column_BliavHBah3', 'Column_RzqotquBQV', 'Column_eFd2LUqnSP']
+
+/**
+ * Preference columns so pending/myitems return form FieldIds (not just Name/_created_by).
+ * Without this POST + apply_preference=true, Trip Type / From / To / Amount stay empty.
+ */
+const PREFERENCE_COLUMNS = {
+    travel: [
+        { Id: 'Travel_Request_ID', Model: 'Travel_Management_A02' },
+        { Id: 'Travel_Request_ID_1', Model: 'Travel_Management_A02' },
+        { Id: 'Purpose_of_Travel', Model: 'Travel_Management_A02' },
+        { Id: 'OnewayRound_tripNot_applicable', Model: 'Travel_Management_A02' },
+        { Id: 'Travel_Type', Model: 'Travel_Management_A02' },
+        { Id: 'Trip_Type', Model: 'Travel_Management_A02' },
+        { Id: 'Travel_Mode', Model: 'Travel_Management_A02' },
+        { Id: 'Departure_Date', Model: 'Travel_Management_A02' },
+        { Id: 'From_Date', Model: 'Travel_Management_A02' },
+        { Id: 'To_Date', Model: 'Travel_Management_A02' },
+        { Id: 'FS_Departure_Date', Model: 'Travel_Management_A02' },
+        { Id: 'Boarding_from', Model: 'Travel_Management_A02' },
+        { Id: 'Destination_to_1', Model: 'Travel_Management_A02' },
+        { Id: 'FS_From_City', Model: 'Travel_Management_A02' },
+        { Id: 'FS_To_City', Model: 'Travel_Management_A02' },
+        { Id: 'FS_Booking_Amount_1', Model: 'Travel_Management_A02' },
+        { Id: 'FS_Booking_Amount', Model: 'Travel_Management_A02' },
+        { Id: 'FS_Total_Fare_1', Model: 'Travel_Management_A02' },
+        { Id: 'MC_Route_Summary', Model: 'Travel_Management_A02' },
+        { Id: 'MC_Total_Booking_Amount', Model: 'Travel_Management_A02' },
+        { Id: 'Employee_Details', Model: 'Travel_Management_A02' },
+        { Id: 'Created_By', Model: 'Travel_Management_A02' },
+        { Id: 'Name', Model: 'Travel_Management_A02' },
+        { Id: '_created_by', Model: 'Travel_Management_A02' },
+        { Id: '_current_step', Model: 'Travel_Management_A02' },
+        { Id: '_status', Model: 'Travel_Management_A02' },
+        { Id: 'SLA_Deadline', Model: 'Travel_Management_A02' },
+    ],
+    advance: [
+        { Id: 'Name', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: '_created_by', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Advance_Purpose', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Final_amount', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'advance_amount_in_number', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: '_current_step', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'SLA_Deadline', Model: 'Advance_Payment_Request_Process_A01' },
+    ],
+    expense: [
+        { Id: 'Name', Model: 'Expense_Management_A03' },
+        { Id: '_created_by', Model: 'Expense_Management_A03' },
+        { Id: '_current_step', Model: 'Expense_Management_A03' },
+        { Id: 'SLA_Deadline', Model: 'Expense_Management_A03' },
+    ],
+}
+
+async function postWorkflowStepPreference({ accountId, processId, viewId, columns }) {
+    if (!accountId || !processId || !viewId || !columns?.length) return null
+    const prefUrl = `/common/2/${accountId}/preference/${processId}/WorkflowStep/${viewId}/?_application_id=${APP_ID}`
+    try {
+        return await kf.api(prefUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                AppId: processId,
+                ConfigJson: { Columns: columns, Filter: {}, Sort: [] },
+                ViewId: viewId,
+                ViewType: 'WorkflowStep',
+            }),
+        })
+    } catch (e) {
+        console.warn('Preference POST failed', viewId, e)
+        return null
+    }
+}
 
 /** Deadline cells: IST wall time (same as expense-management `index.jsx`). */
 const EXPENSE_DATETIME_DISPLAY_TZ = 'Asia/Kolkata'
@@ -966,9 +1037,18 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
 
             if (scopeKey === 'myItems') {
                 const status = myItemsStatus || 'Draft'
+                const prefCols = PREFERENCE_COLUMNS?.[tab.key] || []
+                if (prefCols.length) {
+                    await postWorkflowStepPreference({
+                        accountId,
+                        processId: tab.processId,
+                        viewId: status,
+                        columns: prefCols,
+                    })
+                }
                 const result = await paginateProcessApi(
                     (page) =>
-                        `/process/2/${accountId}/${tab.processId}/myitems/${status}?page_number=${page}&page_size=${PAGE_SIZE}&_application_id=${APP_ID}`,
+                        `/process/2/${accountId}/${tab.processId}/myitems/${status}?page_number=${page}&page_size=${PAGE_SIZE}&apply_preference=true&skip_aggregation=true&_application_id=${APP_ID}`,
                 )
                 allRows = result.allRows
                 allCols = result.allCols
@@ -984,9 +1064,18 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     if (seq === fetchSeqRef.current) setActiveStepId(stepId)
                 }
                 if (stepId) {
+                    const prefCols = PREFERENCE_COLUMNS?.[tab.key] || []
+                    if (prefCols.length) {
+                        await postWorkflowStepPreference({
+                            accountId,
+                            processId: tab.processId,
+                            viewId: stepId,
+                            columns: prefCols,
+                        })
+                    }
                     const result = await paginateProcessApi(
                         (page) =>
-                            `/process/2/${accountId}/${tab.processId}/pending/${stepId}?page_number=${page}&page_size=${PAGE_SIZE}&skip_aggregation=true&_application_id=${APP_ID}`,
+                            `/process/2/${accountId}/${tab.processId}/pending/${stepId}?page_number=${page}&page_size=${PAGE_SIZE}&apply_preference=true&skip_aggregation=true&_application_id=${APP_ID}`,
                     )
                     allRows = result.allRows
                     allCols = result.allCols
@@ -1003,9 +1092,18 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     if (seq === fetchSeqRef.current) setActiveStepId(stepId)
                 }
                 if (stepId) {
+                    const prefCols = PREFERENCE_COLUMNS?.[tab.key] || []
+                    if (prefCols.length) {
+                        await postWorkflowStepPreference({
+                            accountId,
+                            processId: tab.processId,
+                            viewId: stepId,
+                            columns: prefCols,
+                        })
+                    }
                     const result = await paginateProcessApi(
                         (page) =>
-                            `/process/2/${accountId}/${tab.processId}/participated/activity/${stepId}?page_number=${page}&page_size=${PAGE_SIZE}&skip_aggregation=true&_application_id=${APP_ID}`,
+                            `/process/2/${accountId}/${tab.processId}/participated/activity/${stepId}?page_number=${page}&page_size=${PAGE_SIZE}&apply_preference=true&skip_aggregation=true&_application_id=${APP_ID}`,
                     )
                     allRows = result.allRows
                     allCols = result.allCols
@@ -1245,15 +1343,15 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     }
 
     return (
-        <div className="overflow-hidden rounded-xl border border-white/80 bg-white/95 shadow-lg shadow-slate-200/40 backdrop-blur-sm sm:rounded-2xl lg:rounded-3xl">
-            <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white to-blue-50/40 px-3 py-3 sm:px-5 sm:py-4">
+        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl">
+            <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white to-[#EEF4FF] px-3 py-3 sm:px-5 sm:py-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2879b6]/10 text-[#2879b6] sm:h-9 sm:w-9 sm:rounded-xl">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E88E5]/10 text-[#1E88E5] sm:h-9 sm:w-9 sm:rounded-xl">
                             <i className="ri-folder-user-line text-lg" aria-hidden />
                         </div>
                         <div className="min-w-0">
-                            <h3 className="text-[15px] font-semibold text-slate-800 sm:text-base">My Records</h3>
+                            <h3 className="text-[15px] font-semibold text-slate-900 sm:text-base">My Records</h3>
                             <p className="text-[11px] text-slate-500 sm:text-xs">
                                 Drafts, items, tasks & participated · all processes
                             </p>
@@ -1272,9 +1370,10 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                         style={
                                             isActive
                                                 ? {
-                                                      background: '#0f172a',
+                                                      background: '#1E88E5',
                                                       color: '#fff',
-                                                      boxShadow: '0 4px 12px -2px rgba(15,23,42,0.35)',
+                                                      boxShadow: '0 4px 12px -2px rgba(30,136,229,0.4)',
+                                                      border: '1px solid #1565C0',
                                                   }
                                                 : { color: '#64748b', background: 'transparent' }
                                         }

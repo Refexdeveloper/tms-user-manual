@@ -76,30 +76,30 @@ const mainCards = [
         key: 'travel',
         label: 'Travel Booking',
         icon: 'ri-flight-takeoff-line',
-        color: '#2879b6',
-        colorLight: 'rgba(40,121,182,0.12)',
-        gradient: 'linear-gradient(135deg, #2879b6 0%, #3a9ad9 100%)',
-        shadow: 'rgba(40,121,182,0.3)',
+        color: '#1E88E5',
+        colorLight: 'rgba(30,136,229,0.12)',
+        gradient: 'linear-gradient(135deg, #1565C0 0%, #1E88E5 100%)',
+        shadow: 'rgba(30,136,229,0.3)',
         data: dashboardCardStats.travel,
     },
     {
         key: 'advances',
         label: 'Travel Advance',
         icon: 'ri-wallet-3-line',
-        color: '#7dc244',
-        colorLight: 'rgba(125,194,68,0.12)',
-        gradient: 'linear-gradient(135deg, #7dc244 0%, #a3d96a 100%)',
-        shadow: 'rgba(125,194,68,0.3)',
+        color: '#0084AD',
+        colorLight: 'rgba(0,132,173,0.12)',
+        gradient: 'linear-gradient(135deg, #0084AD 0%, #0EA5E9 100%)',
+        shadow: 'rgba(0,132,173,0.3)',
         data: dashboardCardStats.advances,
     },
     {
         key: 'expenses',
         label: 'Travel Expense',
         icon: 'ri-receipt-line',
-        color: '#ee6a31',
-        colorLight: 'rgba(238,106,49,0.12)',
-        gradient: 'linear-gradient(135deg, #ee6a31 0%, #f5924e 100%)',
-        shadow: 'rgba(238,106,49,0.3)',
+        color: '#F97316',
+        colorLight: 'rgba(249,115,22,0.12)',
+        gradient: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
+        shadow: 'rgba(249,115,22,0.3)',
         data: dashboardCardStats.expenses,
     },
 ]
@@ -584,13 +584,13 @@ export function DefaultLandingComponent() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 overflow-y-auto">
+        <div className="min-h-screen overflow-y-auto pm-page-bg">
             <div className="p-1.5 sm:p-4 lg:p-6">
                 <div
-                    className="rounded-lg sm:rounded-2xl mb-2.5 sm:mb-6 relative overflow-hidden animate-fade-in-up"
+                    className="rounded-xl sm:rounded-2xl lg:rounded-3xl mb-2.5 sm:mb-6 relative overflow-hidden animate-fade-in-up shadow-[0_12px_30px_rgba(76,98,168,0.12)]"
                     style={{
                         background:
-                            'linear-gradient(135deg, #0D1F3C 0%, #2879b6 100%)',
+                            'linear-gradient(135deg, #1565C0 0%, #1E88E5 55%, #2B5AED 100%)',
                         padding: '8px 10px',
                     }}
                 >
