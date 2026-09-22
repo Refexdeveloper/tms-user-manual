@@ -584,10 +584,10 @@ export function DefaultLandingComponent() {
     }
 
     return (
-        <div className="min-h-screen overflow-y-auto pm-page-bg">
-            <div className="p-1.5 sm:p-4 lg:p-6">
+        <div className="min-h-screen overflow-y-auto bg-gradient-to-b from-[#edf1ff] via-[#f6f8ff] to-[#F3F6FB]">
+            <div className="mx-auto max-w-[1800px] space-y-3 p-1.5 pb-6 sm:space-y-4 sm:p-4 lg:space-y-6 lg:p-6">
                 <div
-                    className="rounded-xl sm:rounded-2xl lg:rounded-3xl mb-2.5 sm:mb-6 relative overflow-hidden animate-fade-in-up shadow-[0_12px_30px_rgba(76,98,168,0.12)]"
+                    className="rounded-xl sm:rounded-2xl lg:rounded-3xl relative overflow-hidden animate-fade-in-up shadow-[0_12px_30px_rgba(76,98,168,0.12)] border border-white/80"
                     style={{
                         background:
                             'linear-gradient(135deg, #1565C0 0%, #1E88E5 55%, #2B5AED 100%)',

@@ -239,6 +239,132 @@ function readTravelRequestId(row) {
     )
 }
 
+async function safeKfApi(url, options) {
+    if (!url || url.includes('undefined') || url.includes('null')) return null
+    try {
+        return await kf.api(url, options)
+    } catch (e) {
+        console.warn('API failed', url, e)
+        return null
+    }
+}
+
+/** Travel All_Items_A00 → Map(instanceId → report row) for enriching My Items / My Tasks */
+async function fetchTravelAllItemsReportMap(accountId) {
+    const map = new Map()
+    if (!accountId) return map
+    const processId = 'Travel_Management_A02'
+    const reportId = 'All_Items_A00'
+    for (let page = 1; page <= MAX_PAGES; page++) {
+        const url = `/process-report/2/${accountId}/${processId}/${reportId}?_application_id=${APP_ID}&page_number=${page}&page_size=${PAGE_SIZE}`
+        const resp = await safeKfApi(url)
+        const rows = Array.isArray(resp?.Data) ? resp.Data : Array.isArray(resp?.data) ? resp.data : []
+        if (!rows.length) break
+        for (const r of rows) {
+            const id = String(r?._id || '').trim()
+            if (id) map.set(id, r)
+        }
+        if (rows.length < PAGE_SIZE) break
+    }
+    return map
+}
+
+/**
+ * Merge process-report + list row so Column_* and FieldIds both exist.
+ * My Items/pending often omit form fields; All_Items_A00 has the mapped columns.
+ */
+function enrichTravelRowWithReport(listRow, reportRow) {
+    if (!listRow || typeof listRow !== 'object') return listRow
+    const next = { ...listRow }
+    if (!reportRow || typeof reportRow !== 'object') return next
+
+    // Prefer report values for known travel columns / FieldIds when list cell is empty
+    const keys = new Set([
+        ...Object.keys(reportRow),
+        TRAVEL_FIELD_IDS.requestId,
+        TRAVEL_FIELD_IDS.requestor,
+        TRAVEL_FIELD_IDS.from,
+        TRAVEL_FIELD_IDS.to,
+        TRAVEL_FIELD_IDS.bookingAmount,
+        TRAVEL_FIELD_IDS.travelType,
+        TRAVEL_FIELD_IDS.departureDate,
+        TRAVEL_FIELD_IDS.departureDateLegacy,
+        TRAVEL_FIELD_IDS.currentStep,
+        TRAVEL_FIELD_IDS.slaDeadline,
+        TRAVEL_FIELD_IDS.mcRouteSummary,
+        TRAVEL_FIELD_IDS.mcBookingAmount,
+        TRAVEL_PROCESS_FIELD_IDS.requestId,
+        TRAVEL_PROCESS_FIELD_IDS.requestor,
+        TRAVEL_PROCESS_FIELD_IDS.from,
+        TRAVEL_PROCESS_FIELD_IDS.to,
+        TRAVEL_PROCESS_FIELD_IDS.bookingAmount,
+        TRAVEL_PROCESS_FIELD_IDS.travelType,
+        TRAVEL_PROCESS_FIELD_IDS.departureDate,
+        TRAVEL_PROCESS_FIELD_IDS.departureDateLegacy,
+        'Boarding_from',
+        'Destination_to_1',
+        'FS_From_City',
+        'FS_To_City',
+        'FS_Booking_Amount_1',
+        'FS_Booking_Amount',
+        'OnewayRound_tripNot_applicable',
+        'Travel_Type',
+        'Trip_Type',
+        'Departure_Date',
+        'From_Date',
+        'Travel_Request_ID',
+        'Name',
+        '_created_by',
+        '_current_step',
+        'SLA_Deadline',
+    ])
+
+    for (const key of keys) {
+        const reportVal = reportRow[key]
+        if (reportVal === undefined || reportVal === null || reportVal === '') continue
+        const cur = next[key]
+        if (cur === undefined || cur === null || cur === '') {
+            next[key] = reportVal
+        }
+    }
+
+    // Always overlay trip-critical report columns (same as approver widget)
+    for (const key of [
+        TRAVEL_FIELD_IDS.travelType,
+        TRAVEL_FIELD_IDS.departureDate,
+        TRAVEL_FIELD_IDS.mcRouteSummary,
+        TRAVEL_FIELD_IDS.mcBookingAmount,
+        TRAVEL_FIELD_IDS.from,
+        TRAVEL_FIELD_IDS.to,
+        TRAVEL_FIELD_IDS.bookingAmount,
+    ]) {
+        if (reportRow[key] != null && reportRow[key] !== '') next[key] = reportRow[key]
+    }
+
+    return next
+}
+
+/** GET single process item — fills fields preference/report still miss */
+async function fetchTravelItemDetail(accountId, instanceId, activityInstanceId) {
+    if (!accountId || !instanceId) return null
+    const base = `/process/2/${accountId}/Travel_Management_A02/${instanceId}`
+    if (activityInstanceId) {
+        const withAct = await safeKfApi(
+            `${base}/${activityInstanceId}?_application_id=${APP_ID}`,
+        )
+        if (withAct && typeof withAct === 'object') return withAct
+    }
+    return safeKfApi(`${base}?_application_id=${APP_ID}`)
+}
+
+function travelRowNeedsDetail(row) {
+    const from = toText(readTravelFrom(row)).trim()
+    const to = toText(readTravelTo(row)).trim()
+    const amount = toNumber(readTravelAmount(row))
+    const trip = normalizeTravelTypeKey(readTravelTypeRaw(row))
+    return !from || !to || (!amount && !trip)
+}
+
 function normalizeTravelTypeKey(raw) {
     const s = String(raw || '')
         .trim()
@@ -1114,8 +1240,48 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
             const visibleCols = (allCols || []).filter((col) => !HIDDEN_COLUMNS.includes(col.Id))
             setCols(visibleCols)
             setRawCols(allCols)
-            setRows(allRows)
-            setCounts((prev) => ({ ...prev, [tab.key]: allRows.length }))
+
+            let finalRows = allRows
+            if (tab.key === 'travel' && allRows.length) {
+                const reportMap = await fetchTravelAllItemsReportMap(accountId)
+                if (seq !== fetchSeqRef.current) return
+                finalRows = allRows.map((row) => {
+                    const id = String(row?._id || '').trim()
+                    return enrichTravelRowWithReport(row, id ? reportMap.get(id) : null)
+                })
+
+                // For drafts still missing trip fields, hydrate from item GET (cap to keep UI snappy)
+                const needDetail = finalRows
+                    .map((row, idx) => ({ row, idx }))
+                    .filter(({ row }) => travelRowNeedsDetail(row))
+                    .slice(0, 25)
+
+                if (needDetail.length) {
+                    const hydrated = [...finalRows]
+                    await Promise.all(
+                        needDetail.map(async ({ row, idx }) => {
+                            const instanceId = String(row?._id || '').trim()
+                            const activityId = String(
+                                row?._activity_instance_id ||
+                                    row?._context_activity_instance_id ||
+                                    '',
+                            ).trim()
+                            const detail = await fetchTravelItemDetail(accountId, instanceId, activityId)
+                            if (detail && typeof detail === 'object') {
+                                hydrated[idx] = enrichTravelRowWithReport(
+                                    { ...row, ...detail },
+                                    reportMap.get(instanceId),
+                                )
+                            }
+                        }),
+                    )
+                    if (seq !== fetchSeqRef.current) return
+                    finalRows = hydrated
+                }
+            }
+
+            setRows(finalRows)
+            setCounts((prev) => ({ ...prev, [tab.key]: finalRows.length }))
         } catch (e) {
             if (seq !== fetchSeqRef.current) return
             setError(e?.message || `Unable to fetch ${tab.label} items.`)
