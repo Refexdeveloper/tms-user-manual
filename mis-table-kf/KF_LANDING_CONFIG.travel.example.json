@@ -1,0 +1,134 @@
+{
+  "app": {
+    "processId": "Travel_Management_A02",
+    "appId": "Expense_and_Travel_Management_A00",
+    "popupId": "Popup_rCILSrY8KF",
+    "pageSize": 8
+  },
+  "ui": {
+    "enabledTabs": ["myItems", "myTasks", "participated"],
+    "labels": {
+      "myItems": "My Items",
+      "myTasks": "My Tasks",
+      "participated": "Participated"
+    }
+  },
+  "global": {
+    "alwaysHiddenColumns": [],
+    "protectedColumns": ["_id", "_activity_instance_id"],
+    "columnRenames": {
+      "Travel_Request_ID": "Request ID",
+      "_created_by": "Requestor",
+      "OnewayRound_tripNot_applicable": "Trip Type",
+      "Departure_Date": "Departure Date",
+      "Boarding_from": "Source (From)",
+      "Destination_to_1": "Destination (To)",
+      "FS_Booking_Amount_1": "Booking Amount",
+      "_current_step": "Current Step",
+      "SLA_Deadline": "SLA"
+    }
+  },
+  "featureFlags": {
+    "showBreachFilterRow": false
+  },
+  "tabs": {
+    "myItems": {
+      "tabOrder": ["Draft", "InProgress", "Completed", "Withdrawn", "Rejected"],
+      "statuses": {
+        "Draft": {
+          "visibleColumns": [
+            "Travel_Request_ID",
+            "_created_by",
+            "OnewayRound_tripNot_applicable",
+            "Departure_Date",
+            "Boarding_from",
+            "Destination_to_1",
+            "FS_Booking_Amount_1",
+            "_current_step",
+            "SLA_Deadline"
+          ]
+        },
+        "InProgress": {
+          "visibleColumns": [
+            "Travel_Request_ID",
+            "_created_by",
+            "OnewayRound_tripNot_applicable",
+            "Departure_Date",
+            "Boarding_from",
+            "Destination_to_1",
+            "FS_Booking_Amount_1",
+            "_current_step",
+            "SLA_Deadline"
+          ]
+        },
+        "Completed": {
+          "visibleColumns": [
+            "Travel_Request_ID",
+            "_created_by",
+            "OnewayRound_tripNot_applicable",
+            "Departure_Date",
+            "Boarding_from",
+            "Destination_to_1",
+            "FS_Booking_Amount_1",
+            "_current_step",
+            "SLA_Deadline"
+          ]
+        },
+        "Withdrawn": {
+          "visibleColumns": [
+            "Travel_Request_ID",
+            "_created_by",
+            "OnewayRound_tripNot_applicable",
+            "Departure_Date",
+            "Boarding_from",
+            "Destination_to_1",
+            "FS_Booking_Amount_1",
+            "_current_step",
+            "SLA_Deadline"
+          ]
+        },
+        "Rejected": {
+          "visibleColumns": [
+            "Travel_Request_ID",
+            "_created_by",
+            "OnewayRound_tripNot_applicable",
+            "Departure_Date",
+            "Boarding_from",
+            "Destination_to_1",
+            "FS_Booking_Amount_1",
+            "_current_step",
+            "SLA_Deadline"
+          ]
+        }
+      }
+    },
+    "myTasks": {
+      "visibleColumns": [
+        "Travel_Request_ID",
+        "_created_by",
+        "OnewayRound_tripNot_applicable",
+        "Departure_Date",
+        "Boarding_from",
+        "Destination_to_1",
+        "FS_Booking_Amount_1",
+        "_current_step",
+        "SLA_Deadline"
+      ],
+      "extraCustomColumns": []
+    },
+    "participated": {
+      "visibleColumns": [
+        "Travel_Request_ID",
+        "_created_by",
+        "OnewayRound_tripNot_applicable",
+        "Departure_Date",
+        "Boarding_from",
+        "Destination_to_1",
+        "FS_Booking_Amount_1",
+        "_current_step",
+        "SLA_Deadline"
+      ],
+      "extraCustomColumns": []
+    }
+  }
+}

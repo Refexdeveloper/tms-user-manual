@@ -7,10 +7,26 @@ const APP_ID = 'Expense_and_Travel_Management_A00'
 const PAGE_SIZE = 2000
 const MAX_PAGES = 15
 const TABS = [
-    { key: 'travel', label: 'Travel Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_rCILSrY8KF', color: '#2879b6', glow: 'rgba(40,121,182,0.45)' },
-    { key: 'advance', label: 'Travel Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_J0C5lIdWCL', color: '#7dc244', glow: 'rgba(125,194,68,0.45)' },
-    { key: 'expense', label: 'Travel Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_E4xarw8lLE', color: '#ee6a31', glow: 'rgba(238,106,49,0.45)' },
+    { key: 'travel', label: 'Travel Booking', short: 'Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_rCILSrY8KF', color: '#2879b6', glow: 'rgba(40,121,182,0.45)' },
+    { key: 'advance', label: 'Travel Advance', short: 'Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_J0C5lIdWCL', color: '#7dc244', glow: 'rgba(125,194,68,0.45)' },
+    { key: 'expense', label: 'Travel Expense', short: 'Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_E4xarw8lLE', color: '#ee6a31', glow: 'rgba(238,106,49,0.45)' },
 ]
+
+/** Same parent views as mis-table: Drafts live under My Items → Draft. */
+const SCOPE_TABS = [
+    { key: 'myItems', label: 'My Items' },
+    { key: 'myTasks', label: 'My Tasks' },
+    { key: 'participated', label: 'Participated' },
+]
+
+const MY_ITEMS_STATUSES = [
+    { key: 'Draft', label: 'Drafts' },
+    { key: 'InProgress', label: 'In Progress' },
+    { key: 'Completed', label: 'Completed' },
+    { key: 'Withdrawn', label: 'Withdrawn' },
+    { key: 'Rejected', label: 'Rejected' },
+]
+
 const HIDDEN_COLUMNS = ['Column_BliavHBah3', 'Column_RzqotquBQV', 'Column_eFd2LUqnSP']
 
 /** Deadline cells: IST wall time (same as expense-management `index.jsx`). */
@@ -51,6 +67,105 @@ const TRAVEL_FIELD_IDS = {
     mcBookingAmount: 'Column_emdSnf_50o',
     /** Multi-city route e.g. MAA → DEL → BOM */
     mcRouteSummary: 'Column_wLODKWpmSS',
+}
+
+/** Process FieldIds written by Travel Booking Save Draft / report enrichment */
+const TRAVEL_PROCESS_FIELD_IDS = {
+    requestId: 'Travel_Request_ID',
+    departureDate: 'Departure_Date',
+    departureDateLegacy: 'FS_Departure_Date',
+    requestor: '_created_by',
+    from: 'Boarding_from',
+    to: 'Destination_to_1',
+    bookingAmount: 'FS_Booking_Amount_1',
+    currentStep: '_current_step',
+    slaDeadline: 'SLA_Deadline',
+    travelType: 'OnewayRound_tripNot_applicable',
+    mcBookingAmount: 'MC_Total_Booking_Amount',
+    mcRouteSummary: 'MC_Route_Summary',
+}
+
+function readTravelRowValue(row, key) {
+    const colKey = TRAVEL_FIELD_IDS[key]
+    const fieldKey = TRAVEL_PROCESS_FIELD_IDS[key]
+    const colVal = colKey ? row?.[colKey] : undefined
+    if (colVal !== undefined && colVal !== null && colVal !== '') return colVal
+    const fieldVal = fieldKey ? row?.[fieldKey] : undefined
+    if (fieldVal !== undefined && fieldVal !== null && fieldVal !== '') return fieldVal
+    return undefined
+}
+
+function readTravelDeparture(row) {
+    return (
+        readTravelRowValue(row, 'departureDate') ??
+        readTravelRowValue(row, 'departureDateLegacy') ??
+        row?.From_Date ??
+        row?.FS_Departure_Date ??
+        row?.Common_from_date
+    )
+}
+
+function readTravelFrom(row) {
+    return (
+        readTravelRowValue(row, 'from') ??
+        row?.FS_From_City ??
+        row?.Boarding_from ??
+        row?.common_From ??
+        row?.Boarding
+    )
+}
+
+function readTravelTo(row) {
+    return (
+        readTravelRowValue(row, 'to') ??
+        row?.FS_To_City ??
+        row?.Destination_to_1 ??
+        row?.common_To ??
+        row?.Destination_1
+    )
+}
+
+function readTravelAmount(row) {
+    return (
+        readTravelRowValue(row, 'bookingAmount') ??
+        row?.FS_Booking_Amount_1 ??
+        row?.FS_Booking_Amount ??
+        row?.FS_Total_Fare_1 ??
+        row?.FS_Total_Fare ??
+        row?.Booking_Amount_1
+    )
+}
+
+function readTravelTypeRaw(row) {
+    return (
+        readTravelRowValue(row, 'travelType') ??
+        row?.Travel_Type ??
+        row?.Trip_Type ??
+        row?.OnewayRound_tripNot_applicable ??
+        row?.FS_Trip_Type ??
+        row?.travel_type ??
+        row?.tripType
+    )
+}
+
+function readTravelRequestor(row) {
+    return (
+        readTravelRowValue(row, 'requestor') ??
+        row?._created_by ??
+        row?.Created_By ??
+        row?.Employee_Details
+    )
+}
+
+function readTravelRequestId(row) {
+    return (
+        readTravelRowValue(row, 'requestId') ??
+        row?.Travel_Request_ID ??
+        row?.Travel_Request_ID_1 ??
+        row?._name ??
+        row?.Name ??
+        row?._id
+    )
 }
 
 function normalizeTravelTypeKey(raw) {
@@ -435,14 +550,21 @@ function formatLinkToTravel(value) {
 }
 
 function buildAdvanceRowView(row) {
-    const requestId = toText(row?.[ADVANCE_FIELD_IDS.requestId]).trim() || toText(row?._name || row?.Name).trim() || '—'
-    const requestedRaw = row?.[ADVANCE_FIELD_IDS.requestedDate]
+    const requestId =
+        toText(row?.[ADVANCE_FIELD_IDS.requestId]).trim() ||
+        toText(row?.Advance_Request_ID || row?._name || row?.Name).trim() ||
+        '—'
+    const requestedRaw = row?.[ADVANCE_FIELD_IDS.requestedDate] ?? row?.Requested_Date ?? row?.requested_date
     const requestedDateStr =
         (requestedRaw !== undefined && requestedRaw !== null && requestedRaw !== ''
             ? toDateText(extractDateTimeRaw(requestedRaw) ?? requestedRaw)
             : '') || toDateText(row?._created_at)
-    const linkToTravelText = formatLinkToTravel(row?.[ADVANCE_FIELD_IDS.linkToTravel])
-    const requestorText = toText(row?.[ADVANCE_FIELD_IDS.requestor]).trim()
+    const linkToTravelText = formatLinkToTravel(
+        row?.[ADVANCE_FIELD_IDS.linkToTravel] ?? row?.List_of_Travel_Requests_lookup,
+    )
+    const requestorText = toText(
+        row?.[ADVANCE_FIELD_IDS.requestor] ?? row?.created_by_user_id ?? row?._created_by,
+    ).trim()
     const advanceAmount = toNumber(
         row?.[ADVANCE_FIELD_IDS.advanceAmount] ??
             row?.Advance_amount_value ??
@@ -474,41 +596,32 @@ function buildAdvanceRowView(row) {
 }
 
 function buildTravelRowView(row) {
-    const requestId = toText(row?.[TRAVEL_FIELD_IDS.requestId]).trim() || toText(row?._name || row?.Name).trim() || '—'
-    const travelTypeKey = normalizeTravelTypeKey(
-        row?.[TRAVEL_FIELD_IDS.travelType] ?? row?.Travel_Type ?? row?.travel_type ?? row?.tripType,
-    )
+    const requestId = toText(readTravelRequestId(row)).trim() || '—'
+    const travelTypeKey = normalizeTravelTypeKey(readTravelTypeRaw(row))
     const isMultiCity = travelTypeKey === 'multiCity'
     const tripTypeLabel = travelTypeLabel(travelTypeKey)
 
-    const departureRaw =
-        row?.[TRAVEL_FIELD_IDS.departureDate] ??
-        row?.Departure_Date ??
-        row?.departure_date ??
-        row?.[TRAVEL_FIELD_IDS.departureDateLegacy] ??
-        row?.FS_Departure_Date
+    const departureRaw = readTravelDeparture(row)
     const departureDateStr = formatDepartureDateDisplay(departureRaw) || '—'
 
     const routeSummary = toText(
-        row?.[TRAVEL_FIELD_IDS.mcRouteSummary] ?? row?.MC_Route_Summary ?? row?.mc_route_summary,
+        readTravelRowValue(row, 'mcRouteSummary') ?? row?.MC_Route_Summary ?? row?.mc_route_summary,
     ).trim()
     const fromText = isMultiCity
-        ? routeSummary || toText(row?.[TRAVEL_FIELD_IDS.from]).trim() || '—'
-        : toText(row?.[TRAVEL_FIELD_IDS.from]).trim() || '—'
-    const toTextValue = isMultiCity ? '' : toText(row?.[TRAVEL_FIELD_IDS.to]).trim() || '—'
+        ? routeSummary || toText(readTravelFrom(row)).trim() || '—'
+        : toText(readTravelFrom(row)).trim() || '—'
+    const toTextValue = isMultiCity ? '' : toText(readTravelTo(row)).trim() || '—'
 
     const bookingAmount = isMultiCity
         ? toNumber(
-              row?.[TRAVEL_FIELD_IDS.mcBookingAmount] ??
+              readTravelRowValue(row, 'mcBookingAmount') ??
                   row?.MC_Total_Booking_Amount ??
                   row?.mc_total_booking_amount ??
-                  row?.[TRAVEL_FIELD_IDS.bookingAmount] ??
-                  row?.FS_Booking_Amount_1 ??
-                  row?.FS_Booking_Amount,
+                  readTravelAmount(row),
           )
-        : toNumber(row?.[TRAVEL_FIELD_IDS.bookingAmount] ?? row?.FS_Booking_Amount_1 ?? row?.FS_Booking_Amount)
+        : toNumber(readTravelAmount(row))
 
-    const requestorText = toText(row?.[TRAVEL_FIELD_IDS.requestor]).trim()
+    const requestorText = toText(readTravelRequestor(row)).trim()
     const currentStep = extractCurrentStepText(row, TRAVEL_FIELD_IDS.currentStep)
 
     const slaRaw = extractSlaDeadlineRaw(row, TRAVEL_FIELD_IDS.slaDeadline)
@@ -640,11 +753,14 @@ function isPendingStatus(text) {
 
 export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     const accountId = useMemo(() => kf?.account?._id, [])
-    const userEmail = String(kf?.user?.Email || '').trim().toLowerCase()
+    const [scopeKey, setScopeKey] = useState('myItems')
+    const [myItemsStatus, setMyItemsStatus] = useState('Draft')
     const [activeKey, setActiveKey] = useState('travel')
     const activeTab = useMemo(() => TABS.find((t) => t.key === activeKey) || TABS[0], [activeKey])
     const [counts, setCounts] = useState({ expense: 0, advance: 0, travel: 0 })
-    /** False until first counts scan finishes — keeps skeleton up (avoids empty flash). */
+    const [statusCounts, setStatusCounts] = useState({})
+    const [steps, setSteps] = useState([])
+    const [activeStepId, setActiveStepId] = useState('')
     const [countsReady, setCountsReady] = useState(false)
     const [loading, setLoading] = useState(true)
     const [rows, setRows] = useState([])
@@ -658,9 +774,9 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     const pageSize = 8
     const fetchSeqRef = useRef(0)
 
-    const showSkeleton = !countsReady || loading
+    const showSkeleton = loading
     const totalPending = (counts?.expense || 0) + (counts?.advance || 0) + (counts?.travel || 0)
-    const showGlobalEmpty = countsReady && !loading && totalPending === 0
+    const showGlobalEmpty = countsReady && !loading && rows.length === 0 && !String(searchId || '').trim()
 
     const markPopupOpened = () => {
         try {
@@ -671,49 +787,104 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
         }
     }
 
-    const countPendingForTab = async (t) => {
-        let count = 0
+    const paginateProcessApi = async (buildUrl) => {
+        let allRows = []
+        let allCols = []
         for (let page = 1; page <= MAX_PAGES; page++) {
-            const url = `/process-report/2/${accountId}/${t.processId}/${t.reportId}?_application_id=${APP_ID}&page_number=${page}&page_size=${PAGE_SIZE}`
+            const url = buildUrl(page)
             const resp = await kf.api(url)
-            const pageRows = Array.isArray(resp?.Data) ? resp.Data : []
+            const pageRows = Array.isArray(resp?.Data) ? resp.Data : Array.isArray(resp?.data) ? resp.data : []
+            if (!allCols.length) allCols = resp?.Columns || resp?.columns || []
             if (!pageRows.length) break
-            for (const row of pageRows) {
-                const rowEmail =
-                    t.key === 'expense'
-                        ? String(row?.['Column_OpIELajxeZ'] || '').trim().toLowerCase()
-                        : t.key === 'advance'
-                          ? String(row?.['Column_V1IbWdYHUL'] || '').trim().toLowerCase()
-                          : String(row?.['Column_lc0S2wfw8l'] || '').trim().toLowerCase()
-                const statusRaw =
-                    t.key === 'expense'
-                        ? row?.[EXPENSE_STATUS_COL_ID]
-                        : t.key === 'advance'
-                          ? row?.['Column_p9wbFBO6NA'] || row?.['Column_PdcYkpz3ei']
-                          : row?.['Column_iujlmrkz00'] || row?.['Column_hx4B-_JQjZ']
-                if ((!userEmail || rowEmail === userEmail) && isPendingStatus(statusRaw)) count += 1
-            }
+            allRows = allRows.concat(pageRows)
             if (pageRows.length < PAGE_SIZE) break
         }
-        return { key: t.key, count }
+        return { allRows, allCols }
     }
 
-    const fetchCounts = async () => {
-        if (!accountId) return
-        setLoading(true)
-        setCountsReady(false)
-        setError('')
+    const fetchMyItemsStatusCounts = async (tab) => {
+        if (!accountId || !tab) return {}
         try {
-            const results = await Promise.all(TABS.map((t) => countPendingForTab(t)))
-            const next = { expense: 0, advance: 0, travel: 0 }
-            for (const r of results) next[r.key] = r.count
-            setCounts(next)
-            const anyPending = TABS.some((t) => (next[t.key] || 0) > 0)
-            if (!anyPending) setLoading(false)
-            // If any tab has pending, keep skeleton until list fetch finishes.
+            const url = `/process/2/${accountId}/${tab.processId}/myitems/status/count?_application_id=${APP_ID}`
+            const res = await kf.api(url)
+            return {
+                Draft: res?.Draft || 0,
+                InProgress: res?.InProgress || 0,
+                Completed: res?.Completed || 0,
+                Withdrawn: res?.Withdrawn || 0,
+                Rejected: res?.Rejected || 0,
+            }
+        } catch (e) {
+            console.warn('My Items status count failed', tab.key, e)
+            return {}
+        }
+    }
+
+    const fetchProcessCounts = async () => {
+        if (!accountId) return
+        setCountsReady(false)
+        try {
+            if (scopeKey === 'myItems') {
+                const results = await Promise.all(
+                    TABS.map(async (t) => {
+                        const sc = await fetchMyItemsStatusCounts(t)
+                        const n = Number(sc?.[myItemsStatus] || 0)
+                        return { key: t.key, count: n, statusCounts: sc }
+                    }),
+                )
+                const next = { expense: 0, advance: 0, travel: 0 }
+                const byStatus = {}
+                for (const r of results) {
+                    next[r.key] = r.count
+                    byStatus[r.key] = r.statusCounts
+                }
+                setCounts(next)
+                setStatusCounts(byStatus)
+            } else if (scopeKey === 'myTasks') {
+                const results = await Promise.all(
+                    TABS.map(async (t) => {
+                        try {
+                            const url = `/process/2/${accountId}/${t.processId}/pending/activity/count?_application_id=${APP_ID}`
+                            const resp = await kf.api(url)
+                            const list = Array.isArray(resp) ? resp : resp?.Data || resp?.data || []
+                            const count = Array.isArray(list)
+                                ? list.reduce((sum, s) => sum + (Number(s?.Count) || Number(s?.count) || 0), 0)
+                                : 0
+                            return { key: t.key, count, steps: Array.isArray(list) ? list : [] }
+                        } catch {
+                            return { key: t.key, count: 0, steps: [] }
+                        }
+                    }),
+                )
+                const next = { expense: 0, advance: 0, travel: 0 }
+                for (const r of results) next[r.key] = r.count
+                setCounts(next)
+                const activeSteps = results.find((r) => r.key === activeKey)?.steps || []
+                setSteps(activeSteps)
+            } else {
+                const results = await Promise.all(
+                    TABS.map(async (t) => {
+                        try {
+                            const url = `/process/2/${accountId}/${t.processId}/participated/activity/count?_application_id=${APP_ID}`
+                            const resp = await kf.api(url)
+                            const list = Array.isArray(resp) ? resp : resp?.Data || resp?.data || []
+                            const count = Array.isArray(list)
+                                ? list.reduce((sum, s) => sum + (Number(s?.Count) || Number(s?.count) || 0), 0)
+                                : 0
+                            return { key: t.key, count, steps: Array.isArray(list) ? list : [] }
+                        } catch {
+                            return { key: t.key, count: 0, steps: [] }
+                        }
+                    }),
+                )
+                const next = { expense: 0, advance: 0, travel: 0 }
+                for (const r of results) next[r.key] = r.count
+                setCounts(next)
+                const activeSteps = results.find((r) => r.key === activeKey)?.steps || []
+                setSteps(activeSteps)
+            }
         } catch (e) {
             console.error('Counts fetch failed:', e)
-            setLoading(false)
         } finally {
             setCountsReady(true)
         }
@@ -726,50 +897,54 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
             const maps = { expense: {}, advance: {}, travel: {} }
             await Promise.all(
                 TABS.map(async (t) => {
-                    const url = `/process/2/${accountId}/${t.processId}/pending/activity/count?_application_id=${APP_ID}`
-                    const resp = await kf.api(url)
-                    const list = Array.isArray(resp) ? resp : (resp?.Data ?? resp?.data ?? [])
-                    const first = Array.isArray(list) ? list.find((x) => x?._id) : null
-                    next[t.key] = first?._id ? String(first._id) : ''
+                    try {
+                        const url = `/process/2/${accountId}/${t.processId}/pending/activity/count?_application_id=${APP_ID}`
+                        const resp = await kf.api(url)
+                        const list = Array.isArray(resp) ? resp : resp?.Data ?? resp?.data ?? []
+                        const first = Array.isArray(list) ? list.find((x) => x?._id) : null
+                        next[t.key] = first?._id ? String(first._id) : ''
 
-                    if (Array.isArray(list)) {
-                        await Promise.all(
-                            list.map(async (act) => {
-                                const activityId = act?._id
-                                if (!activityId) return
-                                const pendingUrl = `/process/2/${accountId}/${t.processId}/pending/${activityId}?_application_id=${APP_ID}&page_number=1&page_size=${PAGE_SIZE}`
-                                const pendingResp = await kf.api(pendingUrl)
-                                const pendingRows = pendingResp?.Data || pendingResp?.data || []
-                                if (!Array.isArray(pendingRows)) return
-                                for (const r of pendingRows) {
-                                    const iId = r?._id ? String(r._id) : ''
-                                    const aId = r?._activity_instance_id ? String(r._activity_instance_id) : ''
-                                    if (iId && aId) maps[t.key][iId] = aId
-                                }
-                            }),
-                        )
-                    }
-
-                    // Fallback mapping from myitems list by instance id -> activity instance id.
-                    // Needed for reports (like travel) that only expose _id in process-report payload.
-                    for (let page = 1; page <= MAX_PAGES; page++) {
-                        const myItemsUrl = `/process/2/${accountId}/${t.processId}/myitems?apply_preference=true&skip_aggregation=true&_application_id=${APP_ID}&page_number=${page}&page_size=${PAGE_SIZE}`
-                        let myItemsResp
-                        try {
-                            myItemsResp = await kf.api(myItemsUrl)
-                        } catch {
-                            break
+                        if (Array.isArray(list)) {
+                            await Promise.all(
+                                list.slice(0, 5).map(async (act) => {
+                                    const activityId = act?._id
+                                    if (!activityId) return
+                                    const pendingUrl = `/process/2/${accountId}/${t.processId}/pending/${activityId}?_application_id=${APP_ID}&page_number=1&page_size=${PAGE_SIZE}`
+                                    try {
+                                        const pendingResp = await kf.api(pendingUrl)
+                                        const pendingRows = pendingResp?.Data || pendingResp?.data || []
+                                        if (!Array.isArray(pendingRows)) return
+                                        for (const r of pendingRows) {
+                                            const iId = r?._id ? String(r._id) : ''
+                                            const aId = r?._activity_instance_id ? String(r._activity_instance_id) : ''
+                                            if (iId && aId) maps[t.key][iId] = aId
+                                        }
+                                    } catch {
+                                        // ignore
+                                    }
+                                }),
+                            )
                         }
-                        const myItemsRows = myItemsResp?.Data || myItemsResp?.data || []
-                        if (!Array.isArray(myItemsRows) || !myItemsRows.length) break
-                        for (const item of myItemsRows) {
-                            const iId = item?._id ? String(item._id) : ''
-                            const aId = item?._activity_instance_id ? String(item._activity_instance_id) : ''
-                            if (iId && aId && !maps[t.key][iId]) {
-                                maps[t.key][iId] = aId
+
+                        for (let page = 1; page <= 3; page++) {
+                            const myItemsUrl = `/process/2/${accountId}/${t.processId}/myitems?apply_preference=true&skip_aggregation=true&_application_id=${APP_ID}&page_number=${page}&page_size=${PAGE_SIZE}`
+                            let myItemsResp
+                            try {
+                                myItemsResp = await kf.api(myItemsUrl)
+                            } catch {
+                                break
                             }
+                            const myItemsRows = myItemsResp?.Data || myItemsResp?.data || []
+                            if (!Array.isArray(myItemsRows) || !myItemsRows.length) break
+                            for (const item of myItemsRows) {
+                                const iId = item?._id ? String(item._id) : ''
+                                const aId = item?._activity_instance_id ? String(item._activity_instance_id) : ''
+                                if (iId && aId && !maps[t.key][iId]) maps[t.key][iId] = aId
+                            }
+                            if (myItemsRows.length < PAGE_SIZE) break
                         }
-                        if (myItemsRows.length < PAGE_SIZE) break
+                    } catch (e) {
+                        console.warn('Activity id map failed for', t.key, e)
                     }
                 }),
             )
@@ -787,43 +962,62 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
         setError('')
         try {
             let allRows = []
-            let visibleCols = []
             let allCols = []
 
-            for (let page = 1; page <= MAX_PAGES; page++) {
-                const url = `/process-report/2/${accountId}/${tab.processId}/${tab.reportId}?_application_id=${APP_ID}&page_number=${page}&page_size=${PAGE_SIZE}`
-                const resp = await kf.api(url)
-                const pageRows = resp?.Data || []
-
-                if (!visibleCols.length) {
-                    allCols = resp?.Columns || []
-                    visibleCols = allCols.filter((c) => !HIDDEN_COLUMNS.includes(c.Id))
+            if (scopeKey === 'myItems') {
+                const status = myItemsStatus || 'Draft'
+                const result = await paginateProcessApi(
+                    (page) =>
+                        `/process/2/${accountId}/${tab.processId}/myitems/${status}?page_number=${page}&page_size=${PAGE_SIZE}&_application_id=${APP_ID}`,
+                )
+                allRows = result.allRows
+                allCols = result.allCols
+            } else if (scopeKey === 'myTasks') {
+                let stepId = activeStepId
+                if (!stepId) {
+                    const countUrl = `/process/2/${accountId}/${tab.processId}/pending/activity/count?_application_id=${APP_ID}`
+                    const resp = await kf.api(countUrl)
+                    const list = Array.isArray(resp) ? resp : resp?.Data || resp?.data || []
+                    const stepsList = Array.isArray(list) ? list : []
+                    if (seq === fetchSeqRef.current) setSteps(stepsList)
+                    stepId = stepsList[0]?._id ? String(stepsList[0]._id) : ''
+                    if (seq === fetchSeqRef.current) setActiveStepId(stepId)
                 }
-
-                if (!pageRows.length) break
-                const filteredPageRows = pageRows.filter((row) => {
-                    const rowEmail =
-                        tab.key === 'expense'
-                            ? String(row?.['Column_OpIELajxeZ'] || '').trim().toLowerCase()
-                            : tab.key === 'advance'
-                              ? String(row?.['Column_V1IbWdYHUL'] || '').trim().toLowerCase()
-                              : String(row?.['Column_lc0S2wfw8l'] || '').trim().toLowerCase()
-                    const statusRaw =
-                        tab.key === 'expense'
-                            ? row?.[EXPENSE_STATUS_COL_ID]
-                            : tab.key === 'advance'
-                              ? row?.['Column_p9wbFBO6NA'] || row?.['Column_PdcYkpz3ei']
-                              : row?.['Column_iujlmrkz00'] || row?.['Column_hx4B-_JQjZ']
-                    return (!userEmail || rowEmail === userEmail) && isPendingStatus(statusRaw)
-                })
-                allRows = allRows.concat(filteredPageRows)
-                if (pageRows.length < PAGE_SIZE) break
+                if (stepId) {
+                    const result = await paginateProcessApi(
+                        (page) =>
+                            `/process/2/${accountId}/${tab.processId}/pending/${stepId}?page_number=${page}&page_size=${PAGE_SIZE}&skip_aggregation=true&_application_id=${APP_ID}`,
+                    )
+                    allRows = result.allRows
+                    allCols = result.allCols
+                }
+            } else {
+                let stepId = activeStepId
+                if (!stepId) {
+                    const countUrl = `/process/2/${accountId}/${tab.processId}/participated/activity/count?_application_id=${APP_ID}`
+                    const resp = await kf.api(countUrl)
+                    const list = Array.isArray(resp) ? resp : resp?.Data || resp?.data || []
+                    const stepsList = Array.isArray(list) ? list : []
+                    if (seq === fetchSeqRef.current) setSteps(stepsList)
+                    stepId = stepsList[0]?._id ? String(stepsList[0]._id) : ''
+                    if (seq === fetchSeqRef.current) setActiveStepId(stepId)
+                }
+                if (stepId) {
+                    const result = await paginateProcessApi(
+                        (page) =>
+                            `/process/2/${accountId}/${tab.processId}/participated/activity/${stepId}?page_number=${page}&page_size=${PAGE_SIZE}&skip_aggregation=true&_application_id=${APP_ID}`,
+                    )
+                    allRows = result.allRows
+                    allCols = result.allCols
+                }
             }
 
             if (seq !== fetchSeqRef.current) return
+            const visibleCols = (allCols || []).filter((col) => !HIDDEN_COLUMNS.includes(col.Id))
             setCols(visibleCols)
             setRawCols(allCols)
             setRows(allRows)
+            setCounts((prev) => ({ ...prev, [tab.key]: allRows.length }))
         } catch (e) {
             if (seq !== fetchSeqRef.current) return
             setError(e?.message || `Unable to fetch ${tab.label} items.`)
@@ -837,25 +1031,57 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
 
     useEffect(() => {
         if (!accountId) return
-        fetchCounts()
         fetchTabActivityIds()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [accountId])
 
     useEffect(() => {
-        // Wait until counts scan finishes — do NOT clear loading / show empty on boot.
+        if (!accountId) return
+        setActiveStepId('')
+        setSteps([])
+        setCurrentPage(1)
+        setSearchId('')
+        fetchProcessCounts()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accountId, scopeKey, myItemsStatus])
+
+    useEffect(() => {
         if (!accountId || !countsReady) return
-        if ((counts[activeTab.key] ?? 0) <= 0) {
-            setLoading(false)
-            setError('')
-            setRows([])
-            setCols([])
-            setRawCols([])
-            return
-        }
+        setCurrentPage(1)
+        setSearchId('')
         fetchList(activeTab)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accountId, countsReady, activeTab.key])
+    }, [accountId, countsReady, activeTab.key, scopeKey, myItemsStatus, activeStepId])
+
+    useEffect(() => {
+        if (!accountId || scopeKey === 'myItems') return
+        let cancelled = false
+        ;(async () => {
+            try {
+                const url =
+                    scopeKey === 'myTasks'
+                        ? `/process/2/${accountId}/${activeTab.processId}/pending/activity/count?_application_id=${APP_ID}`
+                        : `/process/2/${accountId}/${activeTab.processId}/participated/activity/count?_application_id=${APP_ID}`
+                const resp = await kf.api(url)
+                const list = Array.isArray(resp) ? resp : resp?.Data || resp?.data || []
+                if (cancelled) return
+                const stepsList = Array.isArray(list) ? list : []
+                setSteps(stepsList)
+                setActiveStepId((prev) => {
+                    if (prev && stepsList.some((s) => String(s?._id) === String(prev))) return prev
+                    return stepsList[0]?._id ? String(stepsList[0]._id) : ''
+                })
+            } catch (e) {
+                if (!cancelled) {
+                    setSteps([])
+                    setActiveStepId('')
+                }
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
+    }, [accountId, scopeKey, activeTab.processId, activeTab.key])
 
     const resolveIdsFromListPayload = (row) => {
         const ids = extractPopupIds(row)
@@ -955,9 +1181,9 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     useEffect(() => {
         setCurrentPage(1)
         setSearchId('')
-        // Avoid one-frame empty/stale flash when switching tabs before the list effect runs.
-        if (countsReady && (counts[activeKey] ?? 0) > 0) setLoading(true)
-    }, [activeKey])
+        if (scopeKey !== 'myItems') setActiveStepId('')
+        setLoading(true)
+    }, [activeKey, scopeKey])
 
     useEffect(() => {
         if (currentPage > totalPages) setCurrentPage(totalPages)
@@ -1019,34 +1245,149 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     }
 
     return (
-        <div className="bg-white rounded-lg sm:rounded-2xl p-1.5 sm:p-4 lg:p-5" style={{ border: '1px solid #f0f0f0', boxShadow: '0 2px 20px rgba(0,0,0,0.04)' }}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-2.5 sm:mb-4">
-                <h3 className="text-[10px] sm:text-sm font-bold text-gray-800">Pending Requests</h3>
-                <div className="w-full sm:w-auto overflow-x-auto">
-                    <div className="inline-flex items-center gap-1 p-1 rounded-xl min-w-max" style={{ background: '#f5f5f5' }}>
-                    {TABS.map((tab) => {
-                        const isActive = activeKey === tab.key
-                        return (
-                            <button
-                                key={tab.key}
-                                onClick={() => setActiveKey(tab.key)}
-                                className="text-[8px] sm:text-xs font-medium px-1 sm:px-3 py-0.5 sm:py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap"
-                                style={
-                                    isActive
-                                        ? { background: tab.color, color: '#fff', boxShadow: `0 1px 4px ${tab.glow}` }
-                                        : { color: '#9CA3AF' }
-                                }
-                            >
-                                {tab.label} ({counts[tab.key] ?? 0})
-                            </button>
-                        )
-                    })}
+        <div className="overflow-hidden rounded-xl border border-white/80 bg-white/95 shadow-lg shadow-slate-200/40 backdrop-blur-sm sm:rounded-2xl lg:rounded-3xl">
+            <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white to-blue-50/40 px-3 py-3 sm:px-5 sm:py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2879b6]/10 text-[#2879b6] sm:h-9 sm:w-9 sm:rounded-xl">
+                            <i className="ri-folder-user-line text-lg" aria-hidden />
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="text-[15px] font-semibold text-slate-800 sm:text-base">My Records</h3>
+                            <p className="text-[11px] text-slate-500 sm:text-xs">
+                                Drafts, items, tasks & participated · all processes
+                            </p>
+                        </div>
+                    </div>
+                    <div className="w-full overflow-x-auto hide-scrollbar sm:w-auto">
+                        <div className="inline-flex w-full min-w-max items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-sm sm:w-auto sm:rounded-xl">
+                            {SCOPE_TABS.map((scope) => {
+                                const isActive = scopeKey === scope.key
+                                return (
+                                    <button
+                                        key={scope.key}
+                                        type="button"
+                                        onClick={() => setScopeKey(scope.key)}
+                                        className="btn-press flex-1 cursor-pointer whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-semibold transition-all sm:flex-none sm:rounded-lg sm:px-3 sm:py-1.5"
+                                        style={
+                                            isActive
+                                                ? {
+                                                      background: '#0f172a',
+                                                      color: '#fff',
+                                                      boxShadow: '0 4px 12px -2px rgba(15,23,42,0.35)',
+                                                  }
+                                                : { color: '#64748b', background: 'transparent' }
+                                        }
+                                    >
+                                        {scope.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
                     </div>
                 </div>
+
+                <div className="w-full overflow-x-auto hide-scrollbar">
+                    <div className="inline-flex w-full min-w-max items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-sm sm:rounded-xl">
+                        {TABS.map((tab) => {
+                            const isActive = activeKey === tab.key
+                            return (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => setActiveKey(tab.key)}
+                                    className="btn-press flex-1 cursor-pointer whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-semibold transition-all sm:flex-none sm:rounded-lg sm:px-3 sm:py-1.5"
+                                    style={
+                                        isActive
+                                            ? { background: tab.color, color: '#fff', boxShadow: `0 4px 12px -2px ${tab.glow}` }
+                                            : { color: '#64748b', background: 'transparent' }
+                                    }
+                                >
+                                    <span className="sm:hidden">{tab.short}</span>
+                                    <span className="hidden sm:inline">{tab.label}</span>
+                                    <span className="ml-1 opacity-80">({counts[tab.key] ?? 0})</span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
+
+                {scopeKey === 'myItems' ? (
+                    <div className="w-full overflow-x-auto hide-scrollbar">
+                        <div className="inline-flex min-w-max items-center gap-1.5">
+                            {MY_ITEMS_STATUSES.map((st) => {
+                                const isActive = myItemsStatus === st.key
+                                const n = statusCounts?.[activeKey]?.[st.key]
+                                return (
+                                    <button
+                                        key={st.key}
+                                        type="button"
+                                        onClick={() => setMyItemsStatus(st.key)}
+                                        className="btn-press rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all sm:text-xs"
+                                        style={
+                                            isActive
+                                                ? {
+                                                      background: 'rgba(40,121,182,0.12)',
+                                                      color: '#2879b6',
+                                                      boxShadow: 'inset 0 0 0 1px rgba(40,121,182,0.35)',
+                                                  }
+                                                : {
+                                                      background: '#f8fafc',
+                                                      color: '#64748b',
+                                                      boxShadow: 'inset 0 0 0 1px #e2e8f0',
+                                                  }
+                                        }
+                                    >
+                                        {st.label}
+                                        {n != null ? <span className="ml-1 opacity-70">{n}</span> : null}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                ) : null}
+
+                {(scopeKey === 'myTasks' || scopeKey === 'participated') && steps.length > 0 ? (
+                    <div className="w-full overflow-x-auto hide-scrollbar">
+                        <div className="inline-flex min-w-max items-center gap-1.5">
+                            {steps.map((s) => {
+                                const id = String(s?._id || '')
+                                const isActive = String(activeStepId) === id
+                                const label = s?.StepName || s?.Name || s?.name || 'Step'
+                                const n = Number(s?.Count) || Number(s?.count) || 0
+                                return (
+                                    <button
+                                        key={id || label}
+                                        type="button"
+                                        onClick={() => setActiveStepId(id)}
+                                        className="btn-press rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all sm:text-xs"
+                                        style={
+                                            isActive
+                                                ? {
+                                                      background: 'rgba(40,121,182,0.12)',
+                                                      color: '#2879b6',
+                                                      boxShadow: 'inset 0 0 0 1px rgba(40,121,182,0.35)',
+                                                  }
+                                                : {
+                                                      background: '#f8fafc',
+                                                      color: '#64748b',
+                                                      boxShadow: 'inset 0 0 0 1px #e2e8f0',
+                                                  }
+                                        }
+                                    >
+                                        {label}
+                                        <span className="ml-1 opacity-70">{n}</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                ) : null}
             </div>
-            <div className="mb-2 sm:mb-3">
-                <div className="flex items-center gap-1 sm:gap-2 rounded-md sm:rounded-xl px-1.5 sm:px-3 py-1 sm:py-2" style={{ border: '1px solid #E4E7EC', background: '#fff' }}>
-                    <i className="ri-search-line text-gray-400 text-[9px] sm:text-sm" />
+            <div className="p-3 sm:p-4 lg:p-5">
+            <div className="mb-3">
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 sm:rounded-xl sm:py-2">
+                    <i className="ri-search-line text-base text-slate-400 sm:text-sm" />
                     <input
                         value={searchId}
                         onChange={(e) => {
@@ -1054,7 +1395,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                             setCurrentPage(1)
                         }}
                         placeholder="Search by ID..."
-                        className="w-full bg-transparent text-[9px] sm:text-xs text-gray-700 placeholder:text-gray-400 outline-none"
+                        className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none sm:text-xs"
                     />
                 </div>
             </div>
@@ -1063,7 +1404,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                 <div
                     className="rounded-xl overflow-hidden animate-pulse"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1071,7 +1412,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                         style={{
                             height: 44,
                             borderBottom: '1px solid #EAECF0',
-                            background: '#FCFCFD',
+                            background: 'rgba(248, 250, 252, 0.95)',
                             display: 'grid',
                             gridTemplateColumns:
                                 activeKey === 'expense' || activeKey === 'advance' || activeKey === 'travel'
@@ -1123,24 +1464,26 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     {error}
                 </div>
             ) : showGlobalEmpty ? (
-                <div className="rounded-xl p-6 text-center" style={{ border: '1px dashed #E4E7EC' }}>
-                    <div className="mx-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-3 animate-pulse" style={{ background: '#F2F4F7', border: '1px solid #EAECF0' }}>
-                        <i className="ri-inbox-2-line text-xl sm:text-2xl" style={{ color: '#667085' }} />
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:h-14 sm:w-14">
+                        <i className="ri-inbox-2-line text-xl text-slate-400 sm:text-2xl" />
                     </div>
-                    <p className="text-sm font-semibold text-gray-800">No pending tasks</p>
-                    <p className="text-xs text-gray-500 mt-1">You don’t have any pending items in Expense, Advance, or Booking.</p>
-                    <div className="text-[10px] text-gray-400 mt-2">You’re all caught up.</div>
+                    <p className="text-sm font-semibold text-slate-800">No records found</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                        No {scopeKey === 'myItems' ? MY_ITEMS_STATUSES.find((s) => s.key === myItemsStatus)?.label || 'items' : scopeKey === 'myTasks' ? 'tasks' : 'participated items'} in this process.
+                    </p>
+                    <div className="mt-2 text-[10px] text-slate-400">Try another tab or process.</div>
                 </div>
             ) : filteredRows.length === 0 ? (
-                <div className="rounded-xl p-6 text-center" style={{ border: '1px dashed #E4E7EC' }}>
-                    <p className="text-sm font-semibold text-gray-800">No matching pending records</p>
-                    <p className="text-xs text-gray-500 mt-1">Try a different ID or clear the search.</p>
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                    <p className="text-sm font-semibold text-slate-800">No matching pending records</p>
+                    <p className="mt-1 text-xs text-slate-500">Try a different ID or clear the search.</p>
                 </div>
             ) : activeKey === 'expense' ? (
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1158,10 +1501,10 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                 ].map((h) => (
                                     <th
                                         key={h.label}
-                                        className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
+                                        className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
                                         style={{
                                             textAlign: h.align,
-                                            background: '#FCFCFD',
+                                            background: 'rgba(248, 250, 252, 0.95)',
                                             position: 'sticky',
                                             top: 0,
                                             zIndex: 1,
@@ -1187,15 +1530,15 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                             transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
                                         }}
                                         onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = `${activeTab.color}1A`
+                                            e.currentTarget.style.background = '#f8faff'
                                             e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                            e.currentTarget.style.transform = 'scaleY(1.06)'
-                                            e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
+                                            e.currentTarget.style.transform = 'translateX(2px)'
+                                            e.currentTarget.style.filter = 'none'
                                         }}
                                         onMouseLeave={(e) => {
                                             e.currentTarget.style.background = '#FFFFFF'
                                             e.currentTarget.style.boxShadow = 'none'
-                                            e.currentTarget.style.transform = 'scaleY(1)'
+                                            e.currentTarget.style.transform = 'none'
                                             e.currentTarget.style.filter = 'none'
                                         }}
                                     >
@@ -1250,7 +1593,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1268,10 +1611,10 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                 ].map((h) => (
                                     <th
                                         key={h.label}
-                                        className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
+                                        className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
                                         style={{
                                             textAlign: h.align,
-                                            background: '#FCFCFD',
+                                            background: 'rgba(248, 250, 252, 0.95)',
                                             position: 'sticky',
                                             top: 0,
                                             zIndex: 1,
@@ -1294,15 +1637,15 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                         transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = `${activeTab.color}1A`
+                                        e.currentTarget.style.background = '#f8faff'
                                         e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'scaleY(1.06)'
-                                        e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
+                                        e.currentTarget.style.transform = 'translateX(2px)'
+                                        e.currentTarget.style.filter = 'none'
                                     }}
                                     onMouseLeave={(e) => {
                                         e.currentTarget.style.background = '#FFFFFF'
                                         e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'scaleY(1)'
+                                        e.currentTarget.style.transform = 'none'
                                         e.currentTarget.style.filter = 'none'
                                     }}
                                 >
@@ -1346,7 +1689,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1366,10 +1709,10 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                 ].map((h) => (
                                     <th
                                         key={h.label}
-                                        className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
+                                        className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
                                         style={{
                                             textAlign: h.align,
-                                            background: '#FCFCFD',
+                                            background: 'rgba(248, 250, 252, 0.95)',
                                             position: 'sticky',
                                             top: 0,
                                             zIndex: 1,
@@ -1397,15 +1740,15 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                         transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = `${activeTab.color}1A`
+                                        e.currentTarget.style.background = '#f8faff'
                                         e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'scaleY(1.06)'
-                                        e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
+                                        e.currentTarget.style.transform = 'translateX(2px)'
+                                        e.currentTarget.style.filter = 'none'
                                     }}
                                     onMouseLeave={(e) => {
                                         e.currentTarget.style.background = '#FFFFFF'
                                         e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'scaleY(1)'
+                                        e.currentTarget.style.transform = 'none'
                                         e.currentTarget.style.filter = 'none'
                                     }}
                                 >
@@ -1474,7 +1817,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1490,7 +1833,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                             fontSize: 12,
                                             fontWeight: 700,
                                             borderBottom: '1px solid #EAECF0',
-                                            background: '#FCFCFD',
+                                            background: 'rgba(248, 250, 252, 0.95)',
                                             whiteSpace: 'nowrap',
                                             position: 'sticky',
                                             top: 0,
@@ -1514,15 +1857,15 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                         transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
                                     }}
                                     onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = `${activeTab.color}1A`
+                                        e.currentTarget.style.background = '#f8faff'
                                         e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'scaleY(1.06)'
-                                        e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
+                                        e.currentTarget.style.transform = 'translateX(2px)'
+                                        e.currentTarget.style.filter = 'none'
                                     }}
                                     onMouseLeave={(e) => {
                                         e.currentTarget.style.background = '#FFFFFF'
                                         e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'scaleY(1)'
+                                        e.currentTarget.style.transform = 'none'
                                         e.currentTarget.style.filter = 'none'
                                     }}
                                 >
@@ -1551,7 +1894,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
             )}
             {!showSkeleton && !error && filteredRows.length > 0 && (
                 <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <p className="text-[9px] sm:text-xs text-gray-500">
+                    <p className="text-[9px] sm:text-xs text-slate-500">
                         Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, paginationLength)} of {paginationLength}
                     </p>
                     <div className="flex items-center gap-1">
@@ -1559,26 +1902,25 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                             type="button"
                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="w-4.5 h-4.5 sm:w-7 sm:h-7 rounded border text-[8px] sm:text-xs disabled:opacity-40"
-                            style={{ borderColor: '#E5E7EB' }}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-40"
                         >
                             <i className="ri-arrow-left-s-line" />
                         </button>
-                        <span className="text-[9px] sm:text-xs text-gray-600 px-2">
+                        <span className="text-[9px] sm:text-xs text-slate-600 px-2 font-medium">
                             {currentPage}/{totalPages}
                         </span>
                         <button
                             type="button"
                             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="w-4.5 h-4.5 sm:w-7 sm:h-7 rounded border text-[8px] sm:text-xs disabled:opacity-40"
-                            style={{ borderColor: '#E5E7EB' }}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:opacity-40"
                         >
                             <i className="ri-arrow-right-s-line" />
                         </button>
                     </div>
                 </div>
             )}
+            </div>
         </div>
     )
 }
