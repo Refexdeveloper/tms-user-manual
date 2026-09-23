@@ -568,7 +568,7 @@ export default function UpcomingTrips({ onPopupClosed } = {}) {
                                 <ellipse cx="60" cy="78" rx="52" ry="6" fill="#e2e8f0" opacity="0.6" />
                                 <rect x="8" y="18" width="104" height="52" rx="10" fill="url(#utSky)" stroke="#bae6fd" strokeWidth="1" />
                                 <path d="M8 38h104" stroke="#e0f2fe" strokeWidth="1" />
-                                <text x="60" y="32" textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="system-ui" fontWeight="600">
+                                <text x="60" y="32" textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="Inter, Plus Jakarta Sans, system-ui, sans-serif" fontWeight="600">
                                     DEPARTURES
                                 </text>
                                 <path

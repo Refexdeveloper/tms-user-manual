@@ -1,5 +1,6 @@
 /* global globalThis */
 import React, { useEffect, useMemo, useState } from 'react'
+import { flightIcon } from '../../../raghul_icons/index.js'
 
 const CLOUD_RUN_API_BASE =
     'https://refex-tms-flightsearch-dhwffeu7pq-el.a.run.app'
@@ -3065,7 +3066,7 @@ function FormField(props) {
         border: `${ui.shellBorder}px solid #0b63f6`,
         borderRadius: ui.shellRadius,
         padding: ui.shellPad,
-        fontFamily: 'Arial, Helvetica, sans-serif',
+        fontFamily: "Inter, 'Plus Jakarta Sans', system-ui, sans-serif",
         color: '#172033',
         boxSizing: 'border-box',
         width: '100%',
@@ -3981,7 +3982,7 @@ function FormField(props) {
                                     ? '#16a34a'
                                     : actionDisabled
                                       ? '#cbd5e1'
-                                      : '#ff6b00',
+                                      : '#FB8C00',
                                 color: actionDisabled ? '#64748b' : '#fff',
                             }}
                         >
@@ -4764,7 +4765,7 @@ function FormField(props) {
                         disabled={isLocked || loading}
                         style={{
                             ...buttonStyle,
-                            background: '#ff6b00',
+                            background: '#FB8C00',
                             color: '#fff',
                             height: controlHeight,
                             minHeight: controlHeight,
@@ -4977,7 +4978,7 @@ function FormField(props) {
                         disabled={!canSaveRoundTrip}
                         style={{
                             ...buttonStyle,
-                            background: canSaveRoundTrip ? '#ff6b00' : '#cbd5e1',
+                            background: canSaveRoundTrip ? '#FB8C00' : '#cbd5e1',
                             color: canSaveRoundTrip ? '#fff' : '#64748b',
                             whiteSpace: 'nowrap',
                             width: isMobile ? '100%' : 'auto',
@@ -5099,7 +5100,7 @@ function FormField(props) {
                     disabled={!canSaveRoundTrip}
                     style={{
                         ...buttonStyle,
-                        background: canSaveRoundTrip ? '#ff6b00' : '#cbd5e1',
+                        background: canSaveRoundTrip ? '#FB8C00' : '#cbd5e1',
                         color: canSaveRoundTrip ? '#fff' : '#64748b',
                         whiteSpace: 'nowrap',
                         width: isMobile ? '100%' : 'auto',
@@ -5192,7 +5193,7 @@ function FormField(props) {
                     disabled={!canSave}
                     style={{
                         ...buttonStyle,
-                        background: canSave ? '#ff6b00' : '#cbd5e1',
+                        background: canSave ? '#FB8C00' : '#cbd5e1',
                         color: canSave ? '#fff' : '#64748b',
                         whiteSpace: 'nowrap',
                         width: isMobile ? '100%' : 'auto',
@@ -5340,7 +5341,62 @@ function FormField(props) {
         : null
 
     return (
-        <div style={shellStyle}>
+        <div style={shellStyle} className="rfs-shell">
+            <style>{`
+                @keyframes rfs-shine { to { transform: translateX(130%) rotate(8deg); } }
+                @keyframes rfs-spin-ring { to { transform: rotate(1turn); } }
+                .rfs-shell button:not(:disabled) {
+                    transition: transform .38s cubic-bezier(.22,1.2,.36,1), box-shadow .3s ease, filter .3s ease;
+                }
+                .rfs-shell button:not(:disabled):hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 10px 22px rgba(30,136,229,.18);
+                    filter: saturate(1.05);
+                }
+                .rfs-title-icon {
+                    isolation: isolate;
+                    overflow: hidden;
+                    position: relative;
+                    transform: translateZ(0);
+                    perspective: 400px;
+                    transition: transform .45s cubic-bezier(.22,1.2,.36,1), background .3s ease, box-shadow .35s ease;
+                }
+                .rfs-title-icon img {
+                    width: 78%;
+                    height: 74%;
+                    object-fit: contain;
+                    position: relative;
+                    z-index: 2;
+                    filter: drop-shadow(0 6px 8px rgba(6,90,243,.12));
+                    transition: transform .45s cubic-bezier(.22,1.2,.36,1), filter .3s ease;
+                }
+                .rfs-icon-glow { position:absolute; inset:-30%; z-index:0; background:radial-gradient(circle at 50% 40%,rgba(83,178,254,.45),transparent 62%); opacity:0; transform:scale(.6); transition:opacity .35s ease,transform .45s ease; }
+                .rfs-icon-shine { position:absolute; inset:0; z-index:3; pointer-events:none; background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.7) 48%,transparent 62%); transform:translateX(-120%) rotate(8deg); }
+                .rfs-title-icon::before {
+                    content:""; position:absolute; inset:0; border-radius:inherit; padding:2px;
+                    background:conic-gradient(from 180deg,#53b2fe,#065af3,#7dd3fc,#53b2fe);
+                    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+                    -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+                    mask-composite:exclude; opacity:0; transition:opacity .3s ease;
+                }
+                .rfs-title-icon:hover { transform:translateY(-10px) scale(1.12) rotateX(8deg); background:#fff !important; box-shadow:0 18px 30px rgba(6,90,243,.22),0 0 0 6px rgba(83,178,254,.12); }
+                .rfs-title-icon:hover img { transform:scale(1.08) translateY(-2px); filter:drop-shadow(0 10px 12px rgba(6,90,243,.28)); }
+                .rfs-title-icon:hover .rfs-icon-glow { opacity:1; transform:scale(1.05); }
+                .rfs-title-icon:hover::before { opacity:1; animation:rfs-spin-ring 1.1s linear infinite; }
+                .rfs-title-icon:hover .rfs-icon-shine { animation:rfs-shine .7s ease forwards; }
+                .rfs-shell input:focus, .rfs-shell select:focus {
+                    outline: none;
+                    border-color: #1E88E5 !important;
+                    box-shadow: 0 0 0 3px rgba(30,136,229,.12);
+                }
+                @media (prefers-reduced-motion:reduce) {
+                    .rfs-shell,.rfs-shell *,.rfs-shell *::before,.rfs-shell *::after {
+                        animation-duration:.01ms !important;
+                        animation-iteration-count:1 !important;
+                        transition-duration:.01ms !important;
+                    }
+                }
+            `}</style>
             <div
                 style={{
                     display: 'flex',
@@ -5362,6 +5418,7 @@ function FormField(props) {
                     }}
                 >
                     <div
+                        className="rfs-title-icon"
                         style={{
                             width: ui.iconSize,
                             height: ui.iconSize,
@@ -5374,7 +5431,9 @@ function FormField(props) {
                             flexShrink: 0,
                         }}
                     >
-                        ✈
+                        <span className="rfs-icon-glow" aria-hidden="true" />
+                        <span className="rfs-icon-shine" aria-hidden="true" />
+                        <img src={flightIcon} alt="" aria-hidden="true" />
                     </div>
                     <div>{t('searchFlights')}</div>
                 </div>
@@ -5590,7 +5649,7 @@ function FormField(props) {
                                     style={{
                                         ...buttonStyle,
                                         marginTop: 0,
-                                        background: '#ff6b00',
+                                        background: '#FB8C00',
                                         color: '#fff',
                                         minHeight: isMobile ? 38 : 40,
                                         width: '100%',
@@ -5660,7 +5719,7 @@ function FormField(props) {
                                 style={{
                                     ...buttonStyle,
                                     marginTop: 22,
-                                    background: '#ff6b00',
+                                    background: '#FB8C00',
                                     color: '#fff',
                                     minHeight: 42,
                                 }}

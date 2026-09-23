@@ -1466,6 +1466,7 @@
 import { kf } from './../sdk/index.js'
 import React, { useEffect, useState } from "react";
 import '../index.css';
+import { customTravelExpenseIcon } from '../../../raghul_icons/index.js';
 
 // ============================================================================
 //  BOOT — timing knobs for the variable-loading sequence
@@ -2212,7 +2213,7 @@ const ConfigErrorScreen = ({ reason, missing }) => (
           padding: 16,
           marginTop: 8,
           marginBottom: 16,
-          fontFamily: 'monospace',
+          fontFamily: 'Inter, "Plus Jakarta Sans", system-ui, sans-serif',
           fontSize: 13,
           color: '#7c2d12'
         }}>
@@ -2282,6 +2283,8 @@ export function DefaultLandingComponent() {
   const [steps, setSteps]                 = useState([]);
   const [page, setPage]                   = useState(1);
   const [totalItemsCount, setTotalItemsCount] = useState(0);
+  const [selectedDraftIds, setSelectedDraftIds] = useState(() => new Set());
+  const [deletingDrafts, setDeletingDrafts] = useState(false);
 
   const [myItemsCounts, setMyItemsCounts] = useState({});
   // Per-step counts for "kind: step" sub-tabs in My Items. Computed by fetching
@@ -2839,6 +2842,92 @@ export function DefaultLandingComponent() {
     catch (e) { console.error("❌ NEW EXPENSE ERROR:", e); }
   };
 
+  const resolveDraftDeleteId = (row) =>
+    String(row?._id ?? row?.InstanceID ?? row?.InstanceId ?? row?.id ?? "").trim();
+
+  const toggleDraftSelection = (id) => {
+    if (!id) return;
+    setSelectedDraftIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllDraftsOnPage = (checked, ids) => {
+    setSelectedDraftIds(prev => {
+      const next = new Set(prev);
+      ids.forEach(id => {
+        if (!id) return;
+        if (checked) next.add(id);
+        else next.delete(id);
+      });
+      return next;
+    });
+  };
+
+  const handleDeleteSelectedDrafts = async () => {
+    const ids = Array.from(selectedDraftIds).filter(Boolean);
+    if (!ids.length || deletingDrafts) return;
+
+    const activeDraftTab = resolveMyItemsSubTabs(config?.tabs?.myItems)
+      .find(tab => tab.id === childTab);
+    const isDraft = parentTabId === "myItems"
+      && String(activeDraftTab?.filter || activeDraftTab?.label || "").toLowerCase() === "draft";
+    if (!isDraft) return;
+
+    const processId = config?.app?.processId;
+    if (!requireParams("handleDeleteSelectedDrafts", { accountId, processId })) return;
+    const confirmed = window.confirm(
+      `Delete ${ids.length} selected draft record(s)? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingDrafts(true);
+    try {
+      const results = await Promise.allSettled(
+        ids.map(id =>
+          kf.api(
+            `/process/2/${accountId}/admin/${processId}/${encodeURIComponent(id)}`,
+            { method: "DELETE", headers: { Accept: "application/json" } }
+          )
+        )
+      );
+      const successIds = [];
+      let failed = 0;
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") successIds.push(ids[index]);
+        else failed += 1;
+      });
+
+      if (successIds.length) {
+        setRows(prev => prev.filter(row => !successIds.includes(resolveDraftDeleteId(row))));
+        setSelectedDraftIds(prev => {
+          const next = new Set(prev);
+          successIds.forEach(id => next.delete(id));
+          return next;
+        });
+        setTotalItemsCount(prev => Math.max(0, prev - successIds.length));
+        setMyItemsCounts(prev => ({
+          ...prev,
+          Draft: Math.max(0, (Number(prev.Draft) || 0) - successIds.length),
+        }));
+      }
+
+      if (failed) {
+        window.alert(`${successIds.length} draft(s) deleted, ${failed} failed.`);
+      } else if (successIds.length) {
+        window.alert(`${successIds.length} draft(s) deleted successfully.`);
+      }
+    } catch (error) {
+      console.error("❌ DRAFT DELETE ERROR:", error);
+      window.alert("Delete failed. Please try again or contact support.");
+    } finally {
+      setDeletingDrafts(false);
+    }
+  };
+
   const handleRowClick = async (row) => {
     const popupId = config?.app?.popupId;
     const instanceId = row?._id;
@@ -2942,6 +3031,19 @@ export function DefaultLandingComponent() {
   const myItemSubTabs = resolveMyItemsSubTabs(config?.tabs?.myItems);
   const columnRenames = config.global.columnRenames;
   const enabledTabs = (config.ui.enabledTabs || ["myItems", "myTasks", "participated"]);
+  const activeMyItemsSubTab = myItemSubTabs.find(tab => {
+    const active = String(childTab || "").toLowerCase();
+    return String(tab.id || "").toLowerCase() === active
+      || String(tab.filter || "").toLowerCase() === active
+      || String(tab.label || "").toLowerCase() === active;
+  });
+  const showDraftBulkSelect = parentTabId === "myItems"
+    && String(activeMyItemsSubTab?.filter || activeMyItemsSubTab?.label || "").toLowerCase() === "draft";
+  const draftPageRowIds = showDraftBulkSelect
+    ? displayedRows.map(resolveDraftDeleteId).filter(Boolean)
+    : [];
+  const allDraftRowsSelected = draftPageRowIds.length > 0
+    && draftPageRowIds.every(id => selectedDraftIds.has(id));
 
   const switchParentTab = (tabId) => {
     const t = labelForTab(tabId, config);
@@ -2951,6 +3053,7 @@ export function DefaultLandingComponent() {
     setRows([]);
     setColumns([]);
     setSearchQuery("");
+    setSelectedDraftIds(new Set());
 
     if (tabId === "myItems") {
       const firstSubTab = myItemSubTabs[0];
@@ -2970,6 +3073,20 @@ export function DefaultLandingComponent() {
   return (
     <div id="root">
 
+      <div className="mis-workspace-title">
+        <div className="mis-title-icon" aria-hidden="true">
+          <span className="mis-title-glow" />
+          <span className="mis-title-shine" />
+          <img src={customTravelExpenseIcon} alt="" />
+        </div>
+        <div className="mis-title-copy">
+          <span>Travel Management</span>
+          <h1>MIS Workspace</h1>
+          <p>Track requests, tasks and workflow participation in one place.</p>
+        </div>
+        <div className="mis-live-badge"><span /> Live workspace</div>
+      </div>
+
       <div className="header-container">
         <div className="tabs-header tabs-header--buttons">
           {enabledTabs.map(tabId => {
@@ -2982,6 +3099,16 @@ export function DefaultLandingComponent() {
                 }}
                 className={`pill-tab ${parentTabId === tabId ? "active" : ""}`}
               >
+                <i
+                  className={
+                    tabId === "myItems"
+                      ? "ri-inbox-2-line"
+                      : tabId === "myTasks"
+                        ? "ri-task-line"
+                        : "ri-history-line"
+                  }
+                  aria-hidden="true"
+                />
                 {t}
               </button>
             );
@@ -3003,6 +3130,16 @@ export function DefaultLandingComponent() {
                 className={`segmented-btn parent-segmented-btn ${parentTabId === tabId ? "active" : ""}`}
                 onClick={() => switchParentTab(tabId)}
               >
+                <i
+                  className={
+                    tabId === "myItems"
+                      ? "ri-inbox-2-line"
+                      : tabId === "myTasks"
+                        ? "ri-task-line"
+                        : "ri-history-line"
+                  }
+                  aria-hidden="true"
+                />
                 <span className="segmented-label">
                   {labelForTab(tabId, config)}
                 </span>
@@ -3055,6 +3192,7 @@ export function DefaultLandingComponent() {
                         setChildTab(subTab.id);
                         setPage(1);
                         setSearchQuery("");
+                        setSelectedDraftIds(new Set());
                         fetchMyItems(subTab.id, 1);
                       }}
                       className={`sub-tab ${childTab === subTab.id ? "active" : ""}`}
@@ -3082,6 +3220,7 @@ export function DefaultLandingComponent() {
                     setChildTab(id);
                     setPage(1);
                     setSearchQuery("");
+                    setSelectedDraftIds(new Set());
                     fetchMyItems(id, 1);
                   }}
                 >
@@ -3200,6 +3339,32 @@ export function DefaultLandingComponent() {
           )}
         </div>
 
+        {showDraftBulkSelect && selectedDraftIds.size > 0 && (
+          <div className="draft-bulk-toolbar" role="status">
+            <div>
+              <i className="ri-checkbox-multiple-line" aria-hidden="true" />
+              <span>{selectedDraftIds.size} selected</span>
+            </div>
+            <button
+              type="button"
+              className="draft-clear-btn"
+              onClick={() => setSelectedDraftIds(new Set())}
+              disabled={deletingDrafts}
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              className="draft-delete-btn"
+              onClick={handleDeleteSelectedDrafts}
+              disabled={deletingDrafts}
+            >
+              <i className={deletingDrafts ? "ri-loader-4-line draft-delete-spinner" : "ri-delete-bin-6-line"} aria-hidden="true" />
+              {deletingDrafts ? "Deleting…" : `Delete (${selectedDraftIds.size})`}
+            </button>
+          </div>
+        )}
+
         {parentTabId === "participated" && breachFlag && (
           <div
             className="breach-toggle-container"
@@ -3268,6 +3433,17 @@ export function DefaultLandingComponent() {
             <table style={{ marginBottom: 0 }}>
               <thead>
                 <tr>
+                  {showDraftBulkSelect && (
+                    <th className="draft-select-cell">
+                      <input
+                        type="checkbox"
+                        className="draft-checkbox"
+                        aria-label="Select all drafts on this page"
+                        checked={allDraftRowsSelected}
+                        onChange={(event) => toggleAllDraftsOnPage(event.target.checked, draftPageRowIds)}
+                      />
+                    </th>
+                  )}
                   {columns.map(c => {
                     const displayName = columnRenames[c.Id] || c.Name || c.Id;
                     return <th key={c.Id}>{displayName}</th>;
@@ -3370,9 +3546,24 @@ export function DefaultLandingComponent() {
                     else if (rowStatus.includes("complet"))   rowClass += " row-completed";
                     else if (rowStatus.includes("withdraw"))  rowClass += " row-withdrawn";
                   }
+                  if (showDraftBulkSelect && selectedDraftIds.has(resolveDraftDeleteId(r))) {
+                    rowClass += " draft-row-selected";
+                  }
 
                   return (
                     <tr key={i} className={rowClass} onClick={() => handleRowClick(r)} style={rowInlineStyle}>
+                      {showDraftBulkSelect && (
+                        <td className="draft-select-cell">
+                          <input
+                            type="checkbox"
+                            className="draft-checkbox"
+                            aria-label={`Select draft ${resolveDraftDeleteId(r)}`}
+                            checked={selectedDraftIds.has(resolveDraftDeleteId(r))}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={() => toggleDraftSelection(resolveDraftDeleteId(r))}
+                          />
+                        </td>
+                      )}
                       {columns.map(c => {
 
                         if (c.Id === "kf_custom_timer") {

@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth'
 import CreateMenu from './CreateMenu'
 
@@ -18,57 +18,117 @@ function initials(name) {
     .toUpperCase()
 }
 
+const navigation = [
+  { to: '/', end: true, icon: 'ri-compass-3-line', label: 'My Travel' },
+  { to: '/dashboard', icon: 'ri-layout-grid-line', label: 'Overview' },
+  { to: '/advances', icon: 'ri-bank-card-line', label: 'Advances' },
+  { to: '/expenses', icon: 'ri-receipt-line', label: 'Expenses' },
+]
+
+function pageMeta(pathname) {
+  if (pathname.startsWith('/dashboard')) return ['Overview', 'Your travel activity at a glance']
+  if (pathname.startsWith('/advances')) return ['Travel advances', 'Manage funds for upcoming journeys']
+  if (pathname.startsWith('/expenses')) return ['Travel expenses', 'Submit and track your reimbursements']
+  if (pathname.startsWith('/inbox')) return ['Approval inbox', 'Review items waiting for your attention']
+  if (pathname.startsWith('/new')) return ['Plan a journey', 'Build and submit a new travel request']
+  if (pathname.startsWith('/requests/')) return ['Travel request', 'Review itinerary and approval progress']
+  return ['My Travel', 'Plan beautifully. Travel confidently.']
+}
+
 export default function Shell() {
   const { user, logout } = useAuth()
+  const { pathname } = useLocation()
+  const [pageTitle, pageSubtitle] = pageMeta(pathname)
+  const canApprove = ['l1_manager', 'travel_desk', 'finance'].includes(user.role)
 
   return (
-    <div className="app-shell tms-shell pm-shell">
-      <header className="topbar">
-        <NavLink to="/" className="brand">
-          <span className="brand-mark">
-            <i className="ri-plane-line" />
+    <div className="tms-app">
+      <aside className="tms-sidebar">
+        <NavLink to="/" className="tms-brand">
+          <span className="tms-brand-mark"><i className="ri-flight-takeoff-line" /></span>
+          <span className="tms-brand-copy">
+            <strong>Refex Travel</strong>
+            <small>Business journeys</small>
           </span>
-          <div className="brand-copy">
-            <h1>Travel Management</h1>
-            <p>Book · Approve · Track</p>
-          </div>
         </NavLink>
-        <nav className="nav-cluster">
-          <div className="user-chip">
-            <span className="user-avatar">{initials(user.name)}</span>
+
+        <nav className="tms-nav" aria-label="Primary navigation">
+          <span className="tms-nav-label">Workspace</span>
+          {navigation.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => `tms-nav-item${isActive ? ' active' : ''}`}
+            >
+              <i className={item.icon} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+          {canApprove && (
+            <>
+              <span className="tms-nav-label tms-nav-label-spaced">Manage</span>
+              <NavLink to="/inbox" className={({ isActive }) => `tms-nav-item${isActive ? ' active' : ''}`}>
+                <i className="ri-inbox-2-line" />
+                <span>Approval inbox</span>
+                <b className="tms-nav-dot" aria-hidden />
+              </NavLink>
+            </>
+          )}
+        </nav>
+
+        <div className="tms-sidebar-card">
+          <i className="ri-shield-check-line" />
+          <div>
+            <strong>Travel policy</strong>
+            <span>Company guidance and booking limits</span>
+          </div>
+          <i className="ri-arrow-right-up-line" />
+        </div>
+
+        <div className="tms-sidebar-profile">
+          <span className="user-avatar">{initials(user.name)}</span>
+          <div>
+            <strong>{user.name}</strong>
+            <span>{roleLabel[user.role] || user.role}</span>
+          </div>
+          <button onClick={logout} type="button" aria-label="Switch account" title="Switch account">
+            <i className="ri-logout-box-r-line" />
+          </button>
+        </div>
+      </aside>
+
+      <div className="tms-workspace">
+        <header className="tms-topbar">
+          <div className="tms-page-heading">
+            <span className="tms-mobile-mark"><i className="ri-flight-takeoff-line" /></span>
             <div>
-              <strong>{user.name.split(' ')[0]}</strong>
-              <span>{roleLabel[user.role] || user.role}</span>
+              <h1>{pageTitle}</h1>
+              <p>{pageSubtitle}</p>
             </div>
           </div>
-          <button className="btn btn-ghost" onClick={logout} type="button">
-            <i className="ri-refresh-line" /> Switch
-          </button>
-        </nav>
-      </header>
+          <div className="tms-topbar-actions">
+            <button className="tms-icon-btn" type="button" aria-label="Search">
+              <i className="ri-search-line" />
+            </button>
+            <button className="tms-icon-btn tms-notification" type="button" aria-label="Notifications">
+              <i className="ri-notification-3-line" />
+            </button>
+          <div className="user-chip">
+              <span className="user-avatar">{initials(user.name)}</span>
+              <div>
+                <strong>{user.name.split(' ')[0]}</strong>
+                <span>{roleLabel[user.role] || user.role}</span>
+              </div>
+            </div>
+          </div>
+        </header>
 
-      <div className="module-tabs">
-        <NavLink to="/" end className={({ isActive }) => `module-tab${isActive ? ' active' : ''}`}>
-          <i className="ri-flight-takeoff-line" /> Travel Booking
-        </NavLink>
-        <NavLink to="/dashboard" className={({ isActive }) => `module-tab${isActive ? ' active' : ''}`}>
-          <i className="ri-dashboard-3-line" /> Dashboard
-        </NavLink>
-        <NavLink to="/advances" className={({ isActive }) => `module-tab${isActive ? ' active' : ''}`}>
-          <i className="ri-wallet-3-line" /> Travel Advance
-        </NavLink>
-        <NavLink to="/expenses" className={({ isActive }) => `module-tab${isActive ? ' active' : ''}`}>
-          <i className="ri-receipt-line" /> Travel Expense
-        </NavLink>
-        {(user.role === 'l1_manager' || user.role === 'travel_desk' || user.role === 'finance') && (
-          <NavLink to="/inbox" className={({ isActive }) => `module-tab${isActive ? ' active' : ''}`}>
-            <i className="ri-inbox-2-line" /> Inbox
-          </NavLink>
-        )}
+        <main className="tms-content">
+          <Outlet />
+        </main>
+        <CreateMenu />
       </div>
-
-      <Outlet />
-      <CreateMenu />
     </div>
   )
 }

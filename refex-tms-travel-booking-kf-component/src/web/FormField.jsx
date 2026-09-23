@@ -15,12 +15,14 @@ const COMPONENT_ID = 'refex-tms-travel-booking'
 
 const styles = {
   root: {
-    fontFamily: 'Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-    color: '#0d1f3c',
-    background: 'linear-gradient(180deg, #f4f8fc 0%, #ffffff 40%)',
-    borderRadius: 16,
-    border: '1px solid #e5eaf2',
-    padding: 16,
+    fontFamily: "Inter, 'Plus Jakarta Sans', system-ui, sans-serif",
+    color: '#2C3E50',
+    background:
+      'radial-gradient(900px 420px at 0% 0%, #e8f1ff 0%, transparent 58%), linear-gradient(180deg, #f3f6fb 0%, #ffffff 42%)',
+    borderRadius: 20,
+    border: '1px solid rgba(255,255,255,0.85)',
+    padding: 18,
+    boxShadow: '0 12px 30px rgba(76,98,168,0.12)',
   },
   strip: {
     display: 'flex',
@@ -29,14 +31,14 @@ const styles = {
     padding: '10px 12px',
     borderRadius: 12,
     background: '#fff',
-    border: '1px solid #e5eaf2',
+    border: '1px solid rgba(148,163,184,0.2)',
     marginBottom: 14,
   },
   avatar: {
     width: 36,
     height: 36,
     borderRadius: '50%',
-    background: 'linear-gradient(135deg,#2d7bbf,#70b62c)',
+    background: 'linear-gradient(135deg,#1E88E5,#1565C0)',
     color: '#fff',
     display: 'grid',
     placeItems: 'center',
@@ -50,7 +52,7 @@ const styles = {
     marginBottom: 14,
   },
   modeCard: (active, soft, accent) => ({
-    border: `1.5px solid ${active ? accent : '#e5eaf2'}`,
+    border: `1.5px solid ${active ? accent : 'rgba(148,163,184,0.22)'}`,
     background: active ? soft : '#fff',
     borderRadius: 14,
     padding: '12px 12px',
@@ -69,19 +71,19 @@ const styles = {
   },
   row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
   btn: (primary) => ({
-    border: primary ? 'none' : '1px solid #d7dee8',
-    background: primary ? '#2d7bbf' : '#fff',
-    color: primary ? '#fff' : '#0d1f3c',
-    borderRadius: 10,
+    border: primary ? 'none' : '1px solid rgba(148,163,184,0.3)',
+    background: primary ? '#1E88E5' : '#fff',
+    color: primary ? '#fff' : '#2C3E50',
+    borderRadius: 12,
     padding: '10px 16px',
     fontWeight: 700,
     cursor: 'pointer',
     fontSize: 13,
   }),
   flightCard: (selected) => ({
-    border: `1px solid ${selected ? '#2d7bbf' : '#e5eaf2'}`,
-    background: selected ? '#f0f7fd' : '#fff',
-    borderRadius: 12,
+    border: `1px solid ${selected ? '#1E88E5' : 'rgba(148,163,184,0.22)'}`,
+    background: selected ? '#EEF4FF' : '#fff',
+    borderRadius: 14,
     padding: 12,
     marginBottom: 8,
     display: 'flex',
@@ -478,13 +480,23 @@ export function FormField(props) {
     <div style={styles.root} className="rtb-root">
       <style>{`
         @keyframes rtb-fade-up { from { opacity:0; transform:translateY(10px);} to { opacity:1; transform:none;} }
-        @keyframes rtb-fly { 0%,100%{ transform:translateX(0);} 50%{ transform:translateX(4px);} }
+        @keyframes rtb-shine { to { transform:translateX(130%) rotate(8deg); } }
+        @keyframes rtb-spin-ring { to { transform:rotate(1turn); } }
         .rtb-root { animation: rtb-fade-up .35s ease both; }
-        .rtb-mode { transition: transform .2s ease, box-shadow .2s ease, border-color .2s; }
-        .rtb-mode:hover { transform: translateY(-2px); }
-        .rtb-fly-ico { display:inline-block; animation: rtb-fly 1.6s ease-in-out infinite; }
+        .rtb-mode { position:relative; perspective:400px; transition:border-color .2s ease,background .2s ease; }
+        .rtb-mode-icon { position:relative; display:grid; place-items:center; width:64px; height:58px; margin:0 auto 7px; border-radius:18px; background:#f7fbff; isolation:isolate; overflow:hidden; transform:translateZ(0); transition:transform .45s cubic-bezier(.22,1.2,.36,1),background .3s ease,box-shadow .35s ease; }
+        .rtb-mode-icon img { width:48px; height:44px; object-fit:contain; position:relative; z-index:2; filter:drop-shadow(0 6px 8px rgba(6,90,243,.12)); transition:transform .45s cubic-bezier(.22,1.2,.36,1),filter .3s ease; }
+        .rtb-mode-glow { position:absolute; inset:-30%; z-index:0; background:radial-gradient(circle at 50% 40%,rgba(83,178,254,.45),transparent 62%); opacity:0; transform:scale(.6); transition:opacity .35s ease,transform .45s ease; }
+        .rtb-mode-shine { position:absolute; inset:0; z-index:3; pointer-events:none; background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.7) 48%,transparent 62%); transform:translateX(-120%) rotate(8deg); }
+        .rtb-mode-icon::before { content:""; position:absolute; inset:0; border-radius:inherit; padding:2px; background:conic-gradient(from 180deg,#53b2fe,#065af3,#7dd3fc,#53b2fe); -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); mask-composite:exclude; opacity:0; transition:opacity .3s ease; }
+        .rtb-mode:hover .rtb-mode-icon { transform:translateY(-10px) scale(1.12) rotateX(8deg); background:#fff; box-shadow:0 18px 30px rgba(6,90,243,.22),0 0 0 6px rgba(83,178,254,.12); }
+        .rtb-mode:hover .rtb-mode-icon img { transform:scale(1.08) translateY(-2px); filter:drop-shadow(0 10px 12px rgba(6,90,243,.28)); }
+        .rtb-mode:hover .rtb-mode-glow { opacity:1; transform:scale(1.05); }
+        .rtb-mode:hover .rtb-mode-icon::before { opacity:1; animation:rtb-spin-ring 1.1s linear infinite; }
+        .rtb-mode:hover .rtb-mode-shine { animation:rtb-shine .7s ease forwards; }
         .rtb-flight { transition: border-color .2s, background .2s, transform .15s; }
         .rtb-flight:hover { transform: translateY(-1px); }
+        @media (prefers-reduced-motion:reduce) { .rtb-root,.rtb-root *,.rtb-root *::before,.rtb-root *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; } }
       `}</style>
       <div style={styles.strip}>
         <span style={styles.avatar}>{initials(requester.name)}</span>
@@ -513,12 +525,12 @@ export function FormField(props) {
                 setError('')
               }}
             >
+              <span className="rtb-mode-icon" aria-hidden="true">
+                <span className="rtb-mode-glow" />
+                <span className="rtb-mode-shine" />
+                <img src={m.icon} alt="" />
+              </span>
               <div style={{ fontWeight: 800, color: m.accent, fontSize: 13 }}>
-                {m.id === 'air' || m.id === 'flightHotel' ? (
-                  <span className="rtb-fly-ico" style={{ marginRight: 6 }}>
-                    ✈
-                  </span>
-                ) : null}
                 {m.label}
               </div>
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{m.subtitle}</div>

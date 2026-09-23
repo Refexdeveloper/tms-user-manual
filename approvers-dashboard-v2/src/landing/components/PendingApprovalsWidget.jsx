@@ -1904,23 +1904,10 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                     <tr
                                         key={getRowId(entry.row, idx)}
                                         onClick={() => handleRowClick(entry.row)}
-                                        className="cursor-pointer transition-all"
+                                        className="approver-table-row cursor-pointer"
                                         style={{
+                                            '--row-accent': activeTab.color,
                                             borderBottom: '1px solid #F2F4F7',
-                                            transformOrigin: 'center',
-                                            transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                        }}
-                                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = `${activeTab.color}1A`
-                                            e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                            e.currentTarget.style.transform = 'scaleY(1.06)'
-                                            e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
-                                                        }}
-                                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = '#FFFFFF'
-                                                            e.currentTarget.style.boxShadow = 'none'
-                                            e.currentTarget.style.transform = 'scaleY(1)'
-                                                            e.currentTarget.style.filter = 'none'
                                         }}
                                     >
                                         <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
@@ -2011,23 +1998,10 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="cursor-pointer transition-all"
-                                                                                        style={{
+                                    className="approver-table-row cursor-pointer"
+                                    style={{
+                                        '--row-accent': activeTab.color,
                                         borderBottom: '1px solid #F2F4F7',
-                                        transformOrigin: 'center',
-                                        transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = `${activeTab.color}1A`
-                                        e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'scaleY(1.06)'
-                                        e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = '#FFFFFF'
-                                        e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'scaleY(1)'
-                                        e.currentTarget.style.filter = 'none'
                                     }}
                                 >
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
@@ -2114,23 +2088,10 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="cursor-pointer transition-all"
+                                    className="approver-table-row cursor-pointer"
                                     style={{
+                                        '--row-accent': activeTab.color,
                                         borderBottom: '1px solid #F2F4F7',
-                                        transformOrigin: 'center',
-                                        transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = `${activeTab.color}1A`
-                                        e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'scaleY(1.06)'
-                                        e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = '#FFFFFF'
-                                        e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'scaleY(1)'
-                                        e.currentTarget.style.filter = 'none'
                                     }}
                                 >
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
@@ -2231,23 +2192,10 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 <tr
                                     key={getRowId(row, idx)}
                                     onClick={() => handleRowClick(row)}
-                                    className="cursor-pointer transition-all"
-                                                                                style={{
+                                    className="approver-table-row cursor-pointer"
+                                    style={{
+                                        '--row-accent': activeTab.color,
                                         borderBottom: '1px solid #F2F4F7',
-                                        transformOrigin: 'center',
-                                        transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = `${activeTab.color}1A`
-                                        e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'scaleY(1.06)'
-                                        e.currentTarget.style.filter = `drop-shadow(0 0 10px ${activeTab.color}66) drop-shadow(0 6px 18px ${activeTab.color}40)`
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = '#FFFFFF'
-                                        e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'scaleY(1)'
-                                        e.currentTarget.style.filter = 'none'
                                     }}
                                 >
                                     {cols.map((c) => (

@@ -2,14 +2,20 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { kf } from '../../sdk/index.js'
 import CurrentStepBadges from './CurrentStepBadges.jsx'
 import SlaCell from './SlaCell.jsx'
+import {
+    customPendingRequestsIcon,
+    customTravelBookingIcon,
+    customTravelAdvanceIcon,
+    customTravelExpenseIcon,
+} from '../../../../raghul_icons/index.js'
 
 const APP_ID = 'Expense_and_Travel_Management_A00'
 const PAGE_SIZE = 2000
 const MAX_PAGES = 15
 const TABS = [
-    { key: 'travel', label: 'Travel Booking', short: 'Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_rCILSrY8KF', color: '#1E88E5', glow: 'rgba(30,136,229,0.45)' },
-    { key: 'advance', label: 'Travel Advance', short: 'Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_J0C5lIdWCL', color: '#0084AD', glow: 'rgba(0,132,173,0.45)' },
-    { key: 'expense', label: 'Travel Expense', short: 'Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_E4xarw8lLE', color: '#F97316', glow: 'rgba(249,115,22,0.45)' },
+    { key: 'travel', label: 'Travel Booking', short: 'Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_rCILSrY8KF', color: '#1E88E5', glow: 'rgba(30,136,229,0.45)', icon: customTravelBookingIcon },
+    { key: 'advance', label: 'Travel Advance', short: 'Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_J0C5lIdWCL', color: '#43A047', glow: 'rgba(67,160,71,0.45)', icon: customTravelAdvanceIcon },
+    { key: 'expense', label: 'Travel Expense', short: 'Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_E4xarw8lLE', color: '#FB8C00', glow: 'rgba(251,140,0,0.45)', icon: customTravelExpenseIcon },
 ]
 
 /** Same parent views as mis-table: Drafts live under My Items → Draft. */
@@ -1509,12 +1515,12 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     }
 
     return (
-        <div className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl">
-            <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white to-[#EEF4FF] px-3 py-3 sm:px-5 sm:py-4">
+        <div className="records-panel overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl">
+            <div className="records-header flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white to-[#EEF4FF] px-3 py-3 sm:px-5 sm:py-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1E88E5]/10 text-[#1E88E5] sm:h-9 sm:w-9 sm:rounded-xl">
-                            <i className="ri-folder-user-line text-lg" aria-hidden />
+                        <div className="records-title-icon flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white sm:h-12 sm:w-12">
+                            <img src={customPendingRequestsIcon} alt="" aria-hidden="true" />
                         </div>
                         <div className="min-w-0">
                             <h3 className="text-[15px] font-semibold text-slate-900 sm:text-base">My Records</h3>
@@ -1553,7 +1559,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                 </div>
 
                 <div className="w-full overflow-x-auto hide-scrollbar">
-                    <div className="inline-flex w-full min-w-max items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-sm sm:rounded-xl">
+                    <div className="records-process-tabs inline-flex w-full min-w-max items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-sm sm:rounded-xl">
                         {TABS.map((tab) => {
                             const isActive = activeKey === tab.key
                             return (
@@ -1561,13 +1567,14 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                     key={tab.key}
                                     type="button"
                                     onClick={() => setActiveKey(tab.key)}
-                                    className="btn-press flex-1 cursor-pointer whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-semibold transition-all sm:flex-none sm:rounded-lg sm:px-3 sm:py-1.5"
-                                    style={
-                                        isActive
-                                            ? { background: tab.color, color: '#fff', boxShadow: `0 4px 12px -2px ${tab.glow}` }
-                                            : { color: '#64748b', background: 'transparent' }
-                                    }
+                                    className={`records-process-tab btn-press ${isActive ? 'is-active' : ''}`}
+                                    style={{ '--tab-color': tab.color, '--tab-glow': tab.glow }}
                                 >
+                                    <span className="records-process-icon" aria-hidden="true">
+                                        <span className="records-process-glow" />
+                                        <span className="records-process-shine" />
+                                        <img src={tab.icon} alt="" />
+                                    </span>
                                     <span className="sm:hidden">{tab.short}</span>
                                     <span className="hidden sm:inline">{tab.label}</span>
                                     <span className="ml-1 opacity-80">({counts[tab.key] ?? 0})</span>

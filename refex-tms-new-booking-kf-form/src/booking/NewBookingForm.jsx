@@ -348,7 +348,7 @@ export default function NewBookingForm() {
         )}
       </header>
 
-      {/* Tiny mode icons — Ixigo style */}
+      {/* Travel modes use the shared MMT-style icon system. */}
       <nav className="tb-modes">
         {MODE_OPTIONS.map((m) => (
           <button
@@ -358,8 +358,12 @@ export default function NewBookingForm() {
             style={{ '--accent': m.accent }}
             onClick={() => setMode(m.id)}
           >
-            <i className={m.icon} />
-            <span>{m.label}</span>
+            <span className="tb-mode-icon" aria-hidden="true">
+              <span className="tb-mode-glow" />
+              <span className="tb-mode-shine" />
+              <img src={m.icon} alt="" />
+            </span>
+            <span className="tb-mode-label">{m.label}</span>
           </button>
         ))}
       </nav>

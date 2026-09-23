@@ -1,6 +1,11 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useMemo, useState, useEffect } from 'react'
 import { kf } from '../../sdk/index.js'
+import {
+    customTravelBookingIcon,
+    customTravelAdvanceIcon,
+    customTravelExpenseIcon,
+} from '../../../../raghul_icons/index.js'
 
 const APP_ID = 'Expense_and_Travel_Management_A00'
 const PAGE_SIZE = 2000
@@ -124,15 +129,15 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 const ranges = [
-    { label: 'Last Quarter', months: 3 },
-    { label: 'Last 6 Months', months: 6 },
-    { label: 'This Year', months: 12 },
+    { label: 'Last Quarter', months: 3, icon: 'ri-calendar-event-line' },
+    { label: 'Last 6 Months', months: 6, icon: 'ri-calendar-2-line' },
+    { label: 'This Year', months: 12, icon: 'ri-calendar-check-line' },
 ]
 
 const series = [
-    { key: 'travel', name: 'Travel Booking', color: '#2879b6', gradId: 'blueGrad' },
-    { key: 'advance', name: 'Travel Advance', color: '#7dc244', gradId: 'greenGrad' },
-    { key: 'expense', name: 'Travel Expense', color: '#ee6a31', gradId: 'orangeGrad' },
+    { key: 'travel', name: 'Travel Booking', color: '#1E88E5', gradId: 'blueGrad', icon: customTravelBookingIcon },
+    { key: 'advance', name: 'Travel Advance', color: '#43A047', gradId: 'greenGrad', icon: customTravelAdvanceIcon },
+    { key: 'expense', name: 'Travel Expense', color: '#FB8C00', gradId: 'orangeGrad', icon: customTravelExpenseIcon },
 ]
 
 export default function ExpenseTrendsChart() {
@@ -234,20 +239,16 @@ export default function ExpenseTrendsChart() {
                     <h3 className="text-[10px] sm:text-sm font-bold text-gray-800">Monthly Trends</h3>
                     <p className="text-[8px] sm:text-xs text-gray-400 mt-0.5">Travel Booking · Travel Advance · Travel Expense overview</p>
                 </div>
-                <div className="w-full sm:w-auto overflow-x-auto">
-                    <div className="inline-flex items-center gap-1 p-1 rounded-xl min-w-max" style={{ background: '#f5f5f5' }}>
+                <div className="w-full overflow-hidden sm:w-auto">
+                    <div className="trend-range-tabs flex w-full items-center rounded-xl sm:w-auto">
                     {ranges.map((r, i) => (
                         <button
                             key={r.label}
                             onClick={() => setActiveRange(i)}
-                            className="text-[8px] sm:text-xs font-medium px-1 sm:px-3 py-0.5 sm:py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap"
-                            style={
-                                activeRange === i
-                                    ? { background: '#2879b6', color: '#fff', boxShadow: '0 1px 4px rgba(40,121,182,0.3)' }
-                                    : { color: '#9CA3AF' }
-                            }
+                            className={`trend-range-tab ${activeRange === i ? 'is-active' : ''}`}
                         >
-                            {r.label}
+                            <i className={r.icon} aria-hidden="true" />
+                            <span>{r.label}</span>
                         </button>
                     ))}
                     </div>
@@ -261,13 +262,15 @@ export default function ExpenseTrendsChart() {
                         <button
                             key={s.key}
                             onClick={() => toggle(s.key)}
-                            className="flex items-center gap-1.5 cursor-pointer transition-opacity"
-                            style={{ opacity: isHidden ? 0.35 : 1 }}
+                            className={`trend-series-tab ${isHidden ? 'is-muted' : 'is-active'}`}
+                            style={{ '--series-color': s.color }}
                         >
-                            <span className="w-4 sm:w-8 h-1 rounded-full transition-all" style={{ background: isHidden ? '#d1d5db' : s.color }} />
-                            <span className="text-[8px] sm:text-xs font-medium" style={{ color: isHidden ? '#9CA3AF' : '#374151' }}>
-                                {s.name}
+                            <span className="trend-series-icon" aria-hidden="true">
+                                <span className="trend-series-glow" />
+                                <span className="trend-series-shine" />
+                                <img src={s.icon} alt="" />
                             </span>
+                            <span>{s.name}</span>
                         </button>
                     )
                 })}

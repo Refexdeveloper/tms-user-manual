@@ -4,6 +4,12 @@ import { dashboardCardStats } from '../mocks/advances.js'
 import ExpenseTrendsChart from './components/ExpenseTrendsChart.jsx'
 import UpcomingTrips from './components/UpcomingTrips.jsx'
 import PendingApprovalsWidget from './components/PendingApprovalsWidget.jsx'
+import {
+    flightIcon,
+    customTravelBookingIcon,
+    customTravelAdvanceIcon,
+    customTravelExpenseIcon,
+} from '../../../raghul_icons/index.js'
 
 const APP_ID = 'Expense_and_Travel_Management_A00'
 const L1_MANAGER_DASHBOARD_PAGE_ID = 'Approver_Dashboard_V2_A00'
@@ -76,6 +82,7 @@ const mainCards = [
         key: 'travel',
         label: 'Travel Booking',
         icon: 'ri-flight-takeoff-line',
+        iconAsset: customTravelBookingIcon,
         color: '#1E88E5',
         colorLight: 'rgba(30,136,229,0.12)',
         gradient: 'linear-gradient(135deg, #1565C0 0%, #1E88E5 100%)',
@@ -86,20 +93,22 @@ const mainCards = [
         key: 'advances',
         label: 'Travel Advance',
         icon: 'ri-wallet-3-line',
-        color: '#0084AD',
-        colorLight: 'rgba(0,132,173,0.12)',
-        gradient: 'linear-gradient(135deg, #0084AD 0%, #0EA5E9 100%)',
-        shadow: 'rgba(0,132,173,0.3)',
+        iconAsset: customTravelAdvanceIcon,
+        color: '#43A047',
+        colorLight: 'rgba(67,160,71,0.12)',
+        gradient: 'linear-gradient(135deg, #43A047 0%, #66BB6A 100%)',
+        shadow: 'rgba(67,160,71,0.3)',
         data: dashboardCardStats.advances,
     },
     {
         key: 'expenses',
         label: 'Travel Expense',
         icon: 'ri-receipt-line',
-        color: '#F97316',
-        colorLight: 'rgba(249,115,22,0.12)',
-        gradient: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
-        shadow: 'rgba(249,115,22,0.3)',
+        iconAsset: customTravelExpenseIcon,
+        color: '#FB8C00',
+        colorLight: 'rgba(251,140,0,0.12)',
+        gradient: 'linear-gradient(135deg, #FB8C00 0%, #FFA726 100%)',
+        shadow: 'rgba(251,140,0,0.3)',
         data: dashboardCardStats.expenses,
     },
 ]
@@ -587,28 +596,22 @@ export function DefaultLandingComponent() {
         <div className="min-h-screen overflow-y-auto bg-gradient-to-b from-[#edf1ff] via-[#f6f8ff] to-[#F3F6FB]">
             <div className="mx-auto max-w-[1800px] space-y-3 p-1.5 pb-6 sm:space-y-4 sm:p-4 lg:space-y-6 lg:p-6">
                 <div
-                    className="rounded-xl sm:rounded-2xl lg:rounded-3xl relative overflow-hidden animate-fade-in-up shadow-[0_12px_30px_rgba(76,98,168,0.12)] border border-white/80"
+                    className="travel-hero rounded-xl sm:rounded-2xl relative overflow-hidden animate-fade-in-up border border-white/80"
                     style={{
                         background:
-                            'linear-gradient(135deg, #1565C0 0%, #1E88E5 55%, #2B5AED 100%)',
-                        padding: '8px 10px',
+                            'radial-gradient(circle at 72% 10%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(105deg, #2f87c8 0%, #51a6d8 58%, #7dbfe4 100%)',
+                        padding: '12px 16px',
                     }}
                 >
-                    <div className="absolute right-0 top-0 w-72 h-full pointer-events-none overflow-hidden">
-                        <div
-                            className="w-52 h-52 rounded-full absolute -right-16 -top-16 animate-float"
-                            style={{ background: 'rgba(125,194,68,0.12)' }}
-                        />
-                        <div
-                            className="w-32 h-32 rounded-full absolute right-28 bottom-2 animate-float delay-300"
-                            style={{ background: 'rgba(238,106,49,0.1)' }}
-                        />
-                        <div
-                            className="w-20 h-20 rounded-full absolute right-8 top-6 animate-spin-slow"
-                            style={{
-                                border: '1px solid rgba(255,255,255,0.08)',
-                            }}
-                        />
+                    <div className="travel-hero-art" aria-hidden="true">
+                        <span className="travel-cloud travel-cloud-one" />
+                        <span className="travel-cloud travel-cloud-two" />
+                        <span className="travel-cloud travel-cloud-three" />
+                        <svg className="travel-flight-path" viewBox="0 0 250 60">
+                            <path d="M4 43 C48 4, 82 52, 121 22 S190 12, 222 32" />
+                        </svg>
+                        <img className="travel-hero-plane" src={flightIcon} alt="" />
+                        <span className="travel-hero-quote">“New places.<br />Greater possibilities.”</span>
                     </div>
 
                     <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-4">
@@ -654,7 +657,7 @@ export function DefaultLandingComponent() {
                             </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 flex-shrink-0 w-full lg:w-auto">
+                        <div className="travel-hero-actions flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 flex-shrink-0 w-full lg:w-auto">
                             <div className="sm:hidden w-full">
                                 <div className="flex flex-wrap items-center justify-center gap-1 mb-1">
                                     <button
@@ -1035,12 +1038,14 @@ export function DefaultLandingComponent() {
                             return (
                                 <div
                                     key={card.key}
-                                    className="rounded-lg sm:rounded-2xl overflow-hidden card-lift card-brand-glow animate-fade-in-up shimmer-overlay"
+                                    className="employee-kpi-card rounded-lg sm:rounded-2xl overflow-hidden card-lift animate-fade-in-up"
                                     style={{
                                         background: '#ffffff',
                                         border: `1px solid ${card.color}26`,
                                         boxShadow: `0 10px 24px ${card.shadow.replace('0.3', '0.14')}`,
                                         animationDelay: `${idx * 90}ms`,
+                                        '--kpi-accent': card.color,
+                                        '--kpi-soft': card.colorLight,
                                         '--glow-color': card.shadow.replace(
                                             '0.3',
                                             '0.32'
@@ -1048,7 +1053,7 @@ export function DefaultLandingComponent() {
                                     }}
                                 >
                                     <div
-                                        className="px-2 sm:px-5 pt-2 sm:pt-4 pb-1.5 sm:pb-3 flex items-center justify-between"
+                                        className="employee-kpi-head px-2 sm:px-5 pt-2 sm:pt-4 pb-1.5 sm:pb-3 flex items-center justify-between"
                                         style={{
                                             borderBottom: '1px solid #E6ECF4',
                                             background: card.colorLight,
@@ -1064,25 +1069,22 @@ export function DefaultLandingComponent() {
                                         </div>
                                         <div className="flex">
                                             <div
-                                                className="w-5.5 h-5.5 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center card-icon"
+                                                className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center card-icon"
                                                 style={{
                                                     background: '#ffffff',
                                                     border: `1px solid ${card.color}3A`,
                                                 }}
                                             >
-                                                <i
-                                                    className={`${card.icon} text-[10px] sm:text-base`}
-                                                    style={{
-                                                        color: card.color,
-                                                    }}
-                                                />
+                                                <span className="card-icon-glow" aria-hidden="true" />
+                                                <span className="card-icon-shine" aria-hidden="true" />
+                                                <img className="card-icon-image" src={card.iconAsset} alt="" aria-hidden="true" />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2">
+                                    <div className="employee-kpi-body grid grid-cols-2">
                                         <div
-                                            className="px-2 sm:px-5 py-2 sm:py-4"
+                                            className="employee-kpi-metric px-2 sm:px-5 py-2 sm:py-4"
                                             style={{
                                                 borderRight:
                                                     '1px solid #E6ECF4',
@@ -1179,7 +1181,7 @@ export function DefaultLandingComponent() {
                                         </div>
 
                                         <div
-                                            className="px-2 sm:px-5 py-2 sm:py-4"
+                                            className="employee-kpi-metric px-2 sm:px-5 py-2 sm:py-4"
                                             style={{ background: '#FFFFFF' }}
                                         >
                                             <div className="flex items-center gap-1 mb-1 sm:mb-2">

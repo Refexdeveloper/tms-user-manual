@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
+import { HERO_PLANE, MODE_CARDS } from '../travelMedia'
 
 const PRIMARY = [
   {
@@ -12,6 +13,7 @@ const PRIMARY = [
     icon: 'ri-flight-takeoff-line',
     tone: '#1E88E5',
     soft: '#EFF6FF',
+    image: MODE_CARDS.air,
   },
   {
     id: 'train',
@@ -21,6 +23,7 @@ const PRIMARY = [
     icon: 'ri-train-line',
     tone: '#0084AD',
     soft: '#E0F7FA',
+    image: MODE_CARDS.train,
   },
   {
     id: 'bus',
@@ -30,6 +33,7 @@ const PRIMARY = [
     icon: 'ri-bus-line',
     tone: '#F97316',
     soft: '#FFF7ED',
+    image: MODE_CARDS.bus,
   },
   {
     id: 'flight-hotel',
@@ -39,6 +43,7 @@ const PRIMARY = [
     icon: 'ri-hotel-bed-line',
     tone: '#2B5AED',
     soft: '#EEF2FF',
+    image: MODE_CARDS.flightHotel,
   },
 ]
 
@@ -82,20 +87,29 @@ export default function MyTripPage() {
   const pending = requests.filter((r) => String(r.status || '').includes('pending')).length
 
   return (
-    <div className="pm-page anim-fade-up">
-      <section className="pm-hero-card">
-        <div>
-          <p className="pm-kicker">
-            <i className="ri-suitcase-2-line" /> My Trip
+    <div className="pm-page travel-home anim-fade-up">
+      <section className="travel-editorial-hero">
+        <img src={HERO_PLANE} alt="" className="travel-editorial-bg" />
+        <div className="travel-editorial-overlay" />
+        <div className="travel-editorial-content">
+          <p className="travel-eyebrow">
+            <span /> Refex business travel
           </p>
-          <h1>
-            {greeting()}, {first}!
-          </h1>
-          <p className="pm-hero-sub">Plan your next business trip with RefexOne Travel Management.</p>
+          <h1>{greeting()}, {first}.</h1>
+          <p>Where will business take you next?</p>
+          <div className="travel-hero-actions">
+            <Link className="btn travel-primary-btn" to="/new?mode=air">
+              Plan a journey <i className="ri-arrow-right-line" />
+            </Link>
+            <Link className="travel-quiet-link" to="/dashboard">
+              View your trips <i className="ri-arrow-right-up-line" />
+            </Link>
+          </div>
         </div>
-        <Link className="btn btn-primary" to="/new?mode=air">
-          <i className="ri-add-line" /> New request
-        </Link>
+        <div className="travel-hero-note">
+          <i className="ri-shield-check-line" />
+          <span><strong>Policy-aware booking</strong> every step of the way</span>
+        </div>
       </section>
 
       <section className="pm-kpi-grid">
@@ -121,25 +135,30 @@ export default function MyTripPage() {
 
       <section className="pm-card">
         <div className="pm-card-head">
-          <h2>Book your travel</h2>
-          <span className="pm-chip">Flight · Train · Bus · Stay</span>
+          <div>
+            <p className="section-kicker">Explore your options</p>
+            <h2>Choose how you travel</h2>
+          </div>
+          <span className="pm-chip">One request, every journey</span>
         </div>
-        <div className="pm-mode-grid">
+        <div className="premium-mode-grid">
           {PRIMARY.map((c) => (
             <Link
               key={c.id}
               to={c.to}
-              className="pm-mode-card"
+              className="premium-mode-card"
               style={{ '--tone': c.tone, '--soft': c.soft }}
             >
-              <span className="pm-mode-ico">
-                <i className={c.icon} />
-              </span>
-              <div>
-                <strong>{c.label}</strong>
-                <span>{c.subtitle}</span>
+              <img src={c.image} alt="" />
+              <span className="premium-mode-shade" />
+              <div className="premium-mode-copy">
+                <span className="premium-mode-icon"><i className={c.icon} /></span>
+                <div>
+                  <strong>{c.label}</strong>
+                  <span>{c.subtitle}</span>
+                </div>
               </div>
-              <i className="ri-arrow-right-s-line pm-mode-go" />
+              <i className="ri-arrow-right-up-line premium-mode-go" />
             </Link>
           ))}
         </div>
@@ -168,7 +187,10 @@ export default function MyTripPage() {
 
       <section className="pm-card">
         <div className="pm-card-head">
-          <h2>Recent travel requests</h2>
+          <div>
+            <p className="section-kicker">Your activity</p>
+            <h2>Recent travel requests</h2>
+          </div>
           <Link className="pm-link" to="/dashboard">
             View all <i className="ri-arrow-right-line" />
           </Link>

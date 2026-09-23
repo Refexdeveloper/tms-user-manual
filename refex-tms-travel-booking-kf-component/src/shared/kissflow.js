@@ -1,3 +1,5 @@
+import { flightIcon, trainIcon, busIcon, holidayIcon, hotelIcon, cabIcon } from '../../../raghul_icons/index.js'
+
 /**
  * Kissflow IDs shared with employee-dashboard-v2 / approvers-dashboard-v2.
  * Travel process form FieldIds used by onChange mapping after this component writes JSON.
@@ -56,10 +58,10 @@ export const TRAVEL_FORM_FIELDS = {
 export const CLOUD_RUN_API_BASE = 'https://refex-tms-flightsearch-dhwffeu7pq-el.a.run.app'
 
 export const MODES = [
-  { id: 'air', label: 'Flight', subtitle: 'Domestic & International', accent: '#2d7bbf', soft: '#e8f4fc' },
-  { id: 'train', label: 'Train', subtitle: 'Across India', accent: '#70b62c', soft: '#e8f6e0' },
-  { id: 'bus', label: 'Bus', subtitle: 'Pan India Travel', accent: '#e88a2d', soft: '#fff3e0' },
-  { id: 'flightHotel', label: 'Flight + Hotel', subtitle: 'Complete Travel', accent: '#6b5ce7', soft: '#eeeffb' },
-  { id: 'accommodation', label: 'Hotel', subtitle: 'Stay with comfort', accent: '#8b5cf6', soft: '#f5e8ff' },
-  { id: 'cab', label: 'Cab', subtitle: 'Airport & Local', accent: '#4f6bed', soft: '#e8eeff' },
+  { id: 'air', label: 'Flight', subtitle: 'Domestic & International', icon: flightIcon, accent: '#1E88E5', soft: '#E3F2FD' },
+  { id: 'train', label: 'Train', subtitle: 'Across India', icon: trainIcon, accent: '#43A047', soft: '#E8F5E9' },
+  { id: 'bus', label: 'Bus', subtitle: 'Pan India Travel', icon: busIcon, accent: '#FB8C00', soft: '#FFF3E0' },
+  { id: 'flightHotel', label: 'Flight + Hotel', subtitle: 'Complete Travel', icon: holidayIcon, accent: '#1565C0', soft: '#EEF4FF' },
+  { id: 'accommodation', label: 'Hotel', subtitle: 'Stay with comfort', icon: hotelIcon, accent: '#7C3AED', soft: '#F3E8FF' },
+  { id: 'cab', label: 'Cab', subtitle: 'Airport & Local', icon: cabIcon, accent: '#1E88E5', soft: '#E3F2FD' },
 ]

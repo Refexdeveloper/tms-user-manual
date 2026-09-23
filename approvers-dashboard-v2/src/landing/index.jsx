@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { kf } from './../sdk/index.js'
 import PendingApprovalsWidget from './components/PendingApprovalsWidget.jsx'
+import {
+    flightIcon,
+    customTravelBookingIcon,
+    customTravelAdvanceIcon,
+    customTravelExpenseIcon,
+    customPendingRequestsIcon,
+    customNearingSlaIcon,
+    customSlaBreachedIcon,
+    customExceptionIcon,
+} from '../../../raghul_icons/index.js'
 
 const APP_ID = 'Expense_and_Travel_Management_A00'
 const EMPLOYEE_DASHBOARD_PAGE_ID = 'Employee_Dashboard_V2_A00'
@@ -141,10 +151,10 @@ function AnimatedInt({ value, className, style }) {
 }
 
 const KPI_BRAND = {
-    blue: '#2879b6',
-    orange: '#ee6a31',
-    amberText: '#d97706',
-    red: '#dc2626',
+    blue: '#1E88E5',
+    orange: '#FB8C00',
+    amberText: '#FB8C00',
+    red: '#E53935',
     purple: '#7c3aed',
 }
 
@@ -152,83 +162,75 @@ const COMPACT_CARD = {
     pending: {
         bg: '#f0f7ff',
         border: 'rgba(40, 121, 182, 0.2)',
-        iconBg: 'rgba(40, 121, 182, 0.15)',
-        iconColor: KPI_BRAND.blue,
+        icon: customPendingRequestsIcon,
         valueColor: KPI_BRAND.blue,
-        hoverRing: 'rgba(40,121,182,0.22)',
-        hoverShadow: '0 14px 28px -18px rgba(40,121,182,0.75)',
     },
     nearing: {
         bg: '#fffbeb',
         border: 'rgba(217, 119, 6, 0.22)',
-        iconBg: 'rgba(245, 158, 11, 0.18)',
-        iconColor: KPI_BRAND.amberText,
+        icon: customNearingSlaIcon,
         valueColor: KPI_BRAND.amberText,
-        hoverRing: 'rgba(217,119,6,0.2)',
-        hoverShadow: '0 14px 28px -18px rgba(217,119,6,0.55)',
     },
     breached: {
         bg: '#fef2f2',
         border: 'rgba(220, 38, 38, 0.2)',
-        iconBg: 'rgba(220, 38, 38, 0.12)',
-        iconColor: KPI_BRAND.red,
+        icon: customSlaBreachedIcon,
         valueColor: KPI_BRAND.red,
-        hoverRing: 'rgba(220,38,38,0.2)',
-        hoverShadow: '0 14px 28px -18px rgba(220,38,38,0.5)',
     },
     exception: {
         bg: '#faf5ff',
         border: 'rgba(124, 58, 237, 0.18)',
-        iconBg: 'rgba(124, 58, 237, 0.12)',
-        iconColor: KPI_BRAND.purple,
+        icon: customExceptionIcon,
         valueColor: KPI_BRAND.purple,
-        hoverRing: 'rgba(124,58,237,0.18)',
-        hoverShadow: '0 14px 28px -18px rgba(124,58,237,0.45)',
     },
 }
 
-function CompactSummaryCard({ title, values, variant, iconClass, delayClass = '' }) {
+function CompactSummaryCard({ title, values, variant, delayClass = '' }) {
     const s = COMPACT_CARD[variant]
-    const baseShadow = '0 1px 2px rgba(15, 23, 42, 0.05)'
     const expense = values?.expense ?? 0
     const advance = values?.advance ?? 0
     const travel = values?.travel ?? 0
+    const total = expense + advance + travel
+    const breakdown = [
+        { label: 'Booking', value: travel, icon: customTravelBookingIcon },
+        { label: 'Advance', value: advance, icon: customTravelAdvanceIcon },
+        { label: 'Expense', value: expense, icon: customTravelExpenseIcon },
+    ]
     return (
         <div
-            className={`min-w-0 rounded-lg sm:rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-200 hover:-translate-y-0.5 animate-fade-in-up ${delayClass}`}
-            style={{ background: s.bg, borderColor: s.border, boxShadow: baseShadow }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = `0 0 0 2px ${s.hoverRing}, ${s.hoverShadow}`
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = baseShadow
+            className={`summary-kpi-card min-w-0 animate-fade-in-up ${delayClass}`}
+            style={{
+                '--summary-accent': s.valueColor,
+                '--summary-border': s.border,
+                background: `radial-gradient(ellipse 90% 85% at 0% 0%, ${s.bg} 0%, transparent 58%), radial-gradient(ellipse 65% 60% at 100% 100%, ${s.bg} 0%, transparent 54%), #fff`,
             }}
         >
-            <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 text-[9px] sm:text-[11px] font-semibold text-slate-700 leading-snug truncate" title={title}>
-                    {title}
-                </p>
-                <div
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center flex-shrink-0 border border-slate-200/50"
-                    style={{ background: s.iconBg }}
-                >
-                    <i className={`${iconClass} text-sm sm:text-base`} style={{ color: s.iconColor }} />
+            <div className="summary-kpi-head">
+                <div className="summary-status-icon" aria-hidden="true">
+                    <span className="summary-icon-glow" />
+                    <span className="summary-icon-shine" />
+                    <img src={s.icon} alt="" />
+                </div>
+                <div className="summary-kpi-title">
+                    <p title={title}>{title}</p>
+                    <span>Requires your attention</span>
+                </div>
+                <div className="summary-total">
+                    <AnimatedInt value={total} />
+                    <span>Total</span>
                 </div>
             </div>
 
-            <div className="mt-2 grid grid-cols-3 gap-1.5">
-                <div className="min-w-0 rounded-md border border-slate-200/50 bg-white/70 px-1.5 py-1">
-                    <p className="text-[8px] sm:text-[10px] font-medium text-slate-600 truncate">Booking</p>
-                    <AnimatedInt value={travel} className="text-[11px] sm:text-sm font-extrabold tabular-nums leading-tight" style={{ color: s.valueColor }} />
-                </div>
-                <div className="min-w-0 rounded-md border border-slate-200/50 bg-white/70 px-1.5 py-1">
-                    <p className="text-[8px] sm:text-[10px] font-medium text-slate-600 truncate">Advance</p>
-                    <AnimatedInt value={advance} className="text-[11px] sm:text-sm font-extrabold tabular-nums leading-tight" style={{ color: s.valueColor }} />
-                </div>
-                <div className="min-w-0 rounded-md border border-slate-200/50 bg-white/70 px-1.5 py-1">
-                    <p className="text-[8px] sm:text-[10px] font-medium text-slate-600 truncate">Expense</p>
-                    <AnimatedInt value={expense} className="text-[11px] sm:text-sm font-extrabold tabular-nums leading-tight" style={{ color: s.valueColor }} />
-                </div>
+            <div className="summary-breakdown">
+                {breakdown.map((item) => (
+                    <div className="summary-breakdown-item" key={item.label}>
+                        <img src={item.icon} alt="" aria-hidden="true" />
+                        <div>
+                            <span>{item.label}</span>
+                            <AnimatedInt value={item.value} />
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     )
@@ -391,13 +393,18 @@ export function DefaultLandingComponent() {
         <div className="min-h-screen bg-gray-50 overflow-y-auto">
             <div className="p-2.5 sm:p-4 lg:p-6">
                 <div
-                    className="rounded-lg sm:rounded-2xl mb-2.5 sm:mb-6 relative overflow-hidden animate-fade-in-up"
-                    style={{ background: 'linear-gradient(135deg, #0D1F3C 0%, #2879b6 100%)', padding: '8px 10px' }}
+                    className="travel-hero rounded-xl sm:rounded-2xl mb-2.5 sm:mb-6 relative overflow-hidden animate-fade-in-up border border-white/80"
+                    style={{ background: 'radial-gradient(circle at 72% 10%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(105deg, #2f87c8 0%, #51a6d8 58%, #7dbfe4 100%)', padding: '12px 16px' }}
                 >
-                    <div className="absolute right-0 top-0 w-72 h-full pointer-events-none overflow-hidden">
-                        <div className="w-52 h-52 rounded-full absolute -right-16 -top-16 animate-float" style={{ background: 'rgba(125,194,68,0.12)' }} />
-                        <div className="w-32 h-32 rounded-full absolute right-28 bottom-2 animate-float delay-300" style={{ background: 'rgba(238,106,49,0.1)' }} />
-                        <div className="w-20 h-20 rounded-full absolute right-8 top-6 animate-spin-slow" style={{ border: '1px solid rgba(255,255,255,0.08)' }} />
+                    <div className="travel-hero-art" aria-hidden="true">
+                        <span className="travel-cloud travel-cloud-one" />
+                        <span className="travel-cloud travel-cloud-two" />
+                        <span className="travel-cloud travel-cloud-three" />
+                        <svg className="travel-flight-path" viewBox="0 0 250 60">
+                            <path d="M4 43 C48 4, 82 52, 121 22 S190 12, 222 32" />
+                        </svg>
+                        <img className="travel-hero-plane" src={flightIcon} alt="" />
+                        <span className="travel-hero-quote">“New places.<br />Greater possibilities.”</span>
                     </div>
 
                     <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-4">
@@ -414,7 +421,7 @@ export function DefaultLandingComponent() {
                         </div>
 
                         <div
-                            className="flex-shrink-0 inline-flex rounded-xl p-0.5 sm:p-1 gap-0.5 self-center sm:self-auto scale-95 sm:scale-100"
+                            className="travel-hero-scope flex-shrink-0 inline-flex rounded-xl p-0.5 sm:p-1 gap-0.5 self-center sm:self-auto scale-95 sm:scale-100"
                             style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.12)' }}
                             role="group"
                             aria-label="Dashboard scope"
@@ -456,21 +463,18 @@ export function DefaultLandingComponent() {
                         title="Pending Requests"
                         values={pendingCounts}
                         variant="pending"
-                        iconClass="ri-hourglass-line"
                         delayClass="delay-75"
                     />
                     <CompactSummaryCard
                         title="Nearing SLA"
                         values={slaSummary.nearingSla}
                         variant="nearing"
-                        iconClass="ri-timer-flash-line"
                         delayClass="delay-100"
                     />
                     <CompactSummaryCard
                         title="SLA Breached"
                         values={slaSummary.breachedSla}
                         variant="breached"
-                        iconClass="ri-alarm-warning-line"
                         delayClass="delay-150"
                     />
                     {!hideExceptionCard && (
@@ -478,7 +482,6 @@ export function DefaultLandingComponent() {
                             title="Exception"
                             values={slaSummary.exception}
                             variant="exception"
-                            iconClass="ri-error-warning-line"
                             delayClass="delay-200"
                         />
                     )}

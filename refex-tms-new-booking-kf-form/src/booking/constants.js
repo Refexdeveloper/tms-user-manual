@@ -1,3 +1,5 @@
+import { flightIcon, trainIcon, busIcon, cabIcon, hotelIcon } from '../../../raghul_icons/index.js'
+
 /** Travel_Management_A02 FieldIds */
 export const APP_ID = 'Expense_and_Travel_Management_A00'
 export const TRAVEL_PROCESS_ID = 'Travel_Management_A02'
@@ -42,11 +44,11 @@ export const PURPOSES = ['Business trip', 'Event', 'Conference', 'Customer visit
 
 /** Tiny mode chips — Ixigo / MMT style */
 export const MODE_OPTIONS = [
-  { id: 'Air', label: 'Flights', icon: 'ri-flight-takeoff-line', accent: '#1E88E5' },
-  { id: 'Train', label: 'Trains', icon: 'ri-train-line', accent: '#0084AD' },
-  { id: 'Bus', label: 'Bus', icon: 'ri-bus-line', accent: '#F97316' },
-  { id: 'Cab', label: 'Cabs', icon: 'ri-taxi-line', accent: '#0F766E' },
-  { id: 'Hotel', label: 'Hotels', icon: 'ri-hotel-bed-line', accent: '#8B5CF6' },
+  { id: 'Air', label: 'Flights', icon: flightIcon, accent: '#1E88E5' },
+  { id: 'Train', label: 'Trains', icon: trainIcon, accent: '#0084AD' },
+  { id: 'Bus', label: 'Bus', icon: busIcon, accent: '#F97316' },
+  { id: 'Cab', label: 'Cabs', icon: cabIcon, accent: '#0F766E' },
+  { id: 'Hotel', label: 'Hotels', icon: hotelIcon, accent: '#8B5CF6' },
 ]
 
 export const FARE_CLASSES = ['Economy', 'Premium Economy', 'Business']

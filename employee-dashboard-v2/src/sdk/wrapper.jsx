@@ -17,6 +17,9 @@ export function SDKWrapper(props) {
                     setKfInstance({ isError: true })
                     console.error('Error initializing SDK:', err)
                 })
+        } else {
+            kf = window.kf
+            setKfInstance(window.kf)
         }
     }, [])
 
