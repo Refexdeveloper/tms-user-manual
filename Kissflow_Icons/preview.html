@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kissflow Icons Catalog - 19 Enterprise 3D Icons</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0F172A;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(148, 163, 184, 0.12);
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --accent: #38BDF8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+    }
+    body.light {
+      --bg: #F8FAFC;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --card-border: rgba(226, 232, 240, 0.9);
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --accent: #0284C7;
+      --accent-glow: rgba(2, 132, 199, 0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; transition: background 0.3s, color 0.3s; }
+    body { background: var(--bg); color: var(--text-main); min-height: 100vh; padding: 40px 24px; }
+    .header { text-align: center; max-width: 800px; margin: 0 auto 40px; }
+    .badge { display: inline-block; padding: 6px 16px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); color: var(--accent); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; border: 1px solid rgba(56, 189, 248, 0.3); }
+    h1 { font-size: 38px; font-weight: 800; margin-bottom: 12px; background: linear-gradient(135deg, #38BDF8, #818CF8, #C084FC); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    p.desc { font-size: 16px; color: var(--text-muted); line-height: 1.6; }
+    .controls { display: flex; justify-content: center; gap: 16px; margin-top: 24px; flex-wrap: wrap; }
+    .btn { padding: 10px 20px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-main); display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+    .search-bar { padding: 10px 18px; border-radius: 12px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-main); font-size: 14px; width: 280px; outline: none; }
+    .search-bar:focus { border-color: var(--accent); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; max-width: 1400px; margin: 0 auto; }
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 20px; padding: 24px; text-align: center; position: relative; backdrop-filter: blur(12px); box-shadow: 0 10px 25px rgba(0,0,0,0.05); transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 20px 35px var(--accent-glow); border-color: var(--accent); }
+    .icon-wrapper { width: 140px; height: 140px; margin: 0 auto 18px; display: flex; align-items: center; justify-content: center; position: relative; }
+    .icon-wrapper img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.15)); transition: transform 0.3s; }
+    .card:hover .icon-wrapper img { transform: scale(1.08); }
+    .card-num { position: absolute; top: 16px; left: 16px; font-size: 12px; font-weight: 800; opacity: 0.4; }
+    .card-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+    .card-concept { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .btn-group { display: flex; gap: 8px; justify-content: center; }
+    .btn-sm { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); color: var(--text-main); }
+    .btn-sm:hover { background: var(--accent); color: #FFFFFF; border-color: var(--accent); }
+    
+    .toast { position: fixed; bottom: 30px; right: 30px; background: #10B981; color: white; padding: 12px 24px; border-radius: 12px; font-weight: 600; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); transform: translateY(100px); opacity: 0; transition: transform 0.3s, opacity 0.3s; z-index: 1000; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="badge">Kissflow Enterprise UI Assets</div>
+    <h1>Kissflow Icons Collection</h1>
+    <p class="desc">19 bespoke, high-resolution 3D icons crafted for Refex & Kissflow enterprise products. Available in PNG (256x256 transparent), SVG vector, and self-contained JavaScript data URIs.</p>
+    <div class="controls">
+      <input type="text" id="search" class="search-bar" placeholder="Search icon by name or concept...">
+      <button class="btn" onclick="toggleTheme()">🌓 Toggle Light / Dark</button>
+      <button class="btn" onclick="copyImportSnippet()">📋 Copy Import Snippet</button>
+    </div>
+  </div>
+
+  <div class="grid" id="iconGrid">
+    
+      <div class="card" data-name="travel management" data-concept="airplane + subtle clouds">
+        <div class="card-num">#1</div>
+        <div class="icon-wrapper">
+          <img src="travel-management.png" alt="Travel Management">
+        </div>
+        <h3 class="card-title">Travel Management</h3>
+        <p class="card-concept">Airplane + subtle clouds</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="travel-management.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="travel-management.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('travelManagementIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="expense management" data-concept="expense document + ₹">
+        <div class="card-num">#2</div>
+        <div class="icon-wrapper">
+          <img src="expense-management.png" alt="Expense Management">
+        </div>
+        <h3 class="card-title">Expense Management</h3>
+        <p class="card-concept">Expense document + ₹</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="expense-management.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="expense-management.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('expenseManagementIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="project & task management" data-concept="checklist + gear">
+        <div class="card-num">#3</div>
+        <div class="icon-wrapper">
+          <img src="project-task-management.png" alt="Project & Task Management">
+        </div>
+        <h3 class="card-title">Project & Task Management</h3>
+        <p class="card-concept">Checklist + gear</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="project-task-management.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="project-task-management.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('projectTaskManagementIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="lead tracker" data-concept="target + arrow">
+        <div class="card-num">#4</div>
+        <div class="icon-wrapper">
+          <img src="lead-tracker.png" alt="Lead Tracker">
+        </div>
+        <h3 class="card-title">Lead Tracker</h3>
+        <p class="card-concept">Target + arrow</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="lead-tracker.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="lead-tracker.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('leadTrackerIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="agreement management" data-concept="contract + approval/check">
+        <div class="card-num">#5</div>
+        <div class="icon-wrapper">
+          <img src="agreement-management.png" alt="Agreement Management">
+        </div>
+        <h3 class="card-title">Agreement Management</h3>
+        <p class="card-concept">Contract + approval/check</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="agreement-management.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="agreement-management.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('agreementManagementIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="it helpdesk" data-concept="headset + support chat">
+        <div class="card-num">#6</div>
+        <div class="icon-wrapper">
+          <img src="it-helpdesk.png" alt="IT Helpdesk">
+        </div>
+        <h3 class="card-title">IT Helpdesk</h3>
+        <p class="card-concept">Headset + support chat</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="it-helpdesk.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="it-helpdesk.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('itHelpdeskIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="fleet registration" data-concept="vehicle + registration document/check">
+        <div class="card-num">#7</div>
+        <div class="icon-wrapper">
+          <img src="fleet-registration.png" alt="Fleet Registration">
+        </div>
+        <h3 class="card-title">Fleet Registration</h3>
+        <p class="card-concept">Vehicle + registration document/check</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="fleet-registration.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="fleet-registration.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('fleetRegistrationIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="coal ash" data-concept="mining cart + coal">
+        <div class="card-num">#8</div>
+        <div class="icon-wrapper">
+          <img src="coal-ash.png" alt="Coal Ash">
+        </div>
+        <h3 class="card-title">Coal Ash</h3>
+        <p class="card-concept">Mining cart + coal</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="coal-ash.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="coal-ash.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('coalAshIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="refex mobility" data-concept="location pin + car">
+        <div class="card-num">#9</div>
+        <div class="icon-wrapper">
+          <img src="refex-mobility.png" alt="Refex Mobility">
+        </div>
+        <h3 class="card-title">Refex Mobility</h3>
+        <p class="card-concept">Location pin + car</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="refex-mobility.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="refex-mobility.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('refexMobilityIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="asset management" data-concept="asset boxes + gear">
+        <div class="card-num">#10</div>
+        <div class="icon-wrapper">
+          <img src="asset-management.png" alt="Asset Management">
+        </div>
+        <h3 class="card-title">Asset Management</h3>
+        <p class="card-concept">Asset boxes + gear</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="asset-management.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="asset-management.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('assetManagementIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="feast refex" data-concept="plate + fork/spoon">
+        <div class="card-num">#11</div>
+        <div class="icon-wrapper">
+          <img src="feast-refex.png" alt="Feast Refex">
+        </div>
+        <h3 class="card-title">Feast Refex</h3>
+        <p class="card-concept">Plate + fork/spoon</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="feast-refex.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="feast-refex.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('feastRefexIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="procure 2pay" data-concept="procurement cart + ₹">
+        <div class="card-num">#12</div>
+        <div class="icon-wrapper">
+          <img src="procure-2pay.png" alt="Procure 2Pay">
+        </div>
+        <h3 class="card-title">Procure 2Pay</h3>
+        <p class="card-concept">Procurement cart + ₹</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="procure-2pay.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="procure-2pay.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('procure2PayIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="solar expense hub" data-concept="solar panel + sun">
+        <div class="card-num">#13</div>
+        <div class="icon-wrapper">
+          <img src="solar-expense-hub.png" alt="Solar Expense Hub">
+        </div>
+        <h3 class="card-title">Solar Expense Hub</h3>
+        <p class="card-concept">Solar panel + sun</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="solar-expense-hub.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="solar-expense-hub.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('solarExpenseHubIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="legal expense" data-concept="legal document + scales + ₹">
+        <div class="card-num">#14</div>
+        <div class="icon-wrapper">
+          <img src="legal-expense.png" alt="Legal Expense">
+        </div>
+        <h3 class="card-title">Legal Expense</h3>
+        <p class="card-concept">Legal document + scales + ₹</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="legal-expense.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="legal-expense.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('legalExpenseIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="flights" data-concept="airplane">
+        <div class="card-num">#15</div>
+        <div class="icon-wrapper">
+          <img src="flights.png" alt="Flights">
+        </div>
+        <h3 class="card-title">Flights</h3>
+        <p class="card-concept">Airplane</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="flights.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="flights.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('flightsIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="hotels" data-concept="hotel/building">
+        <div class="card-num">#16</div>
+        <div class="icon-wrapper">
+          <img src="hotels.png" alt="Hotels">
+        </div>
+        <h3 class="card-title">Hotels</h3>
+        <p class="card-concept">Hotel/building</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="hotels.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="hotels.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('hotelsIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="villas & homestays" data-concept="villa + tree">
+        <div class="card-num">#17</div>
+        <div class="icon-wrapper">
+          <img src="villas-homestays.png" alt="Villas & Homestays">
+        </div>
+        <h3 class="card-title">Villas & Homestays</h3>
+        <p class="card-concept">Villa + tree</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="villas-homestays.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="villas-homestays.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('villasHomestaysIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="holiday packages" data-concept="umbrella + beach ball">
+        <div class="card-num">#18</div>
+        <div class="icon-wrapper">
+          <img src="holiday-packages.png" alt="Holiday Packages">
+        </div>
+        <h3 class="card-title">Holiday Packages</h3>
+        <p class="card-concept">Umbrella + beach ball</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="holiday-packages.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="holiday-packages.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('holidayPackagesIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+      <div class="card" data-name="trains" data-concept="modern train">
+        <div class="card-num">#19</div>
+        <div class="icon-wrapper">
+          <img src="trains.png" alt="Trains">
+        </div>
+        <h3 class="card-title">Trains</h3>
+        <p class="card-concept">Modern train</p>
+        <div class="btn-group">
+          <a class="btn-sm" href="trains.png" download style="text-decoration:none;">PNG</a>
+          <a class="btn-sm" href="trains.svg" download style="text-decoration:none;">SVG</a>
+          <button class="btn-sm" onclick="copyVar('trainsIcon')">Copy Export</button>
+        </div>
+      </div>
+    
+  </div>
+
+  <div id="toast" class="toast">Copied to clipboard!</div>
+
+  <script>
+    function toggleTheme() {
+      document.body.classList.toggle('light');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    }
+
+    function copyVar(varName) {
+      navigator.clipboard.writeText(varName);
+      showToast('Copied: ' + varName);
+    }
+
+    function copyImportSnippet() {
+      const snippet = "import { " + "travelManagementIcon, expenseManagementIcon, projectTaskManagementIcon, leadTrackerIcon" + " } from '../Kissflow_Icons/index.js';";
+      navigator.clipboard.writeText(snippet);
+      showToast('Copied import snippet!');
+    }
+
+    document.getElementById('search').addEventListener('input', function(e) {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('.card').forEach(card => {
+        const name = card.getAttribute('data-name');
+        const concept = card.getAttribute('data-concept');
+        if (name.includes(q) || concept.includes(q)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

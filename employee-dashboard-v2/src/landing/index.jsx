@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { kf } from './../sdk/index.js'
 import { dashboardCardStats } from '../mocks/advances.js'
-import ExpenseTrendsChart from './components/ExpenseTrendsChart.jsx'
-import UpcomingTrips from './components/UpcomingTrips.jsx'
+// import ExpenseTrendsChart from './components/ExpenseTrendsChart.jsx'
+// import UpcomingTrips from './components/UpcomingTrips.jsx'
 import PendingApprovalsWidget from './components/PendingApprovalsWidget.jsx'
 import {
     flightIcon,
@@ -77,12 +77,22 @@ const PENDING_COUNT_TABS = [
     },
 ]
 
+const CARD_FOCUS = {
+    'travel-total': { processKey: 'travel', bucket: 'total', label: 'Total requests' },
+    'travel-claimed': { processKey: 'travel', bucket: 'claimed', label: 'Booked' },
+    'advances-submitted': { processKey: 'advance', bucket: 'submitted', label: 'Submitted' },
+    'advances-claimed': { processKey: 'advance', bucket: 'claimed', label: 'Claimed' },
+    'expenses-submitted': { processKey: 'expense', bucket: 'submitted', label: 'Submitted' },
+    'expenses-claimed': { processKey: 'expense', bucket: 'claimed', label: 'Claimed' },
+}
+
 const mainCards = [
     {
         key: 'travel',
         label: 'Travel Booking',
         icon: 'ri-flight-takeoff-line',
         iconAsset: customTravelBookingIcon,
+        popupKey: 'travel',
         color: '#1E88E5',
         colorLight: 'rgba(30,136,229,0.12)',
         gradient: 'linear-gradient(135deg, #1565C0 0%, #1E88E5 100%)',
@@ -94,6 +104,7 @@ const mainCards = [
         label: 'Travel Advance',
         icon: 'ri-wallet-3-line',
         iconAsset: customTravelAdvanceIcon,
+        popupKey: 'advance',
         color: '#43A047',
         colorLight: 'rgba(67,160,71,0.12)',
         gradient: 'linear-gradient(135deg, #43A047 0%, #66BB6A 100%)',
@@ -105,6 +116,7 @@ const mainCards = [
         label: 'Travel Expense',
         icon: 'ri-receipt-line',
         iconAsset: customTravelExpenseIcon,
+        popupKey: 'expense',
         color: '#FB8C00',
         colorLight: 'rgba(251,140,0,0.12)',
         gradient: 'linear-gradient(135deg, #FB8C00 0%, #FFA726 100%)',
@@ -150,9 +162,94 @@ function AnimatedInt({ value }) {
     return n.toLocaleString('en-IN')
 }
 
+function MobileWelcomeCard({
+    greetingText,
+    userName,
+    scope,
+    onScopeChange,
+    onRefresh,
+    teamDisabled,
+    createOpen,
+    onToggleCreate,
+    onCreate,
+}) {
+    return (
+        <section className="mobile-welcome" aria-label="Welcome">
+            <h1 className="mobile-welcome-title">
+                {greetingText}, {userName}
+            </h1>
+            <div className="mobile-welcome-actions">
+                <div className="mobile-welcome-scope" role="group" aria-label="Dashboard scope">
+                    {[
+                        { id: 'me', label: 'Me', color: '#1E88E5' },
+                        { id: 'team', label: 'My team', color: '#43A047' },
+                    ].map((opt) => {
+                        const restricted = opt.id === 'team' && teamDisabled
+                        return (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                className={`mobile-welcome-scope-btn${scope === opt.id ? ' is-active' : ''}`}
+                                style={{ '--scope-accent': opt.color }}
+                                onClick={() => onScopeChange(opt.id)}
+                                aria-disabled={restricted}
+                                title={restricted ? 'Available for manager roles' : undefined}
+                            >
+                                {opt.label}
+                            </button>
+                        )
+                    })}
+                </div>
+                <div className="mobile-welcome-tools">
+                    <button
+                        type="button"
+                        className="mobile-welcome-icon-btn"
+                        aria-label="Refresh dashboard"
+                        onClick={onRefresh}
+                    >
+                        <i className="ri-refresh-line" aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        className={`mobile-welcome-icon-btn${createOpen ? ' is-open' : ''}`}
+                        aria-label={createOpen ? 'Close create menu' : 'Create a new request'}
+                        aria-expanded={createOpen}
+                        onClick={onToggleCreate}
+                    >
+                        <i className={`ri-add-line${createOpen ? ' is-open' : ''}`} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+            {createOpen ? (
+                <div className="mobile-welcome-creates" role="menu" aria-label="Create request">
+                    {[
+                        { key: 'travel', label: 'Travel Booking', color: '#1E88E5' },
+                        { key: 'advance', label: 'Travel Advance', color: '#43A047' },
+                        { key: 'expense', label: 'Travel Expense', color: '#FB8C00' },
+                    ].map((action) => (
+                        <button
+                            key={action.key}
+                            type="button"
+                            role="menuitem"
+                            className="mobile-welcome-create-item"
+                            style={{ '--satellite-accent': action.color }}
+                            onClick={() => onCreate?.(action.key)}
+                        >
+                            {action.label}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+        </section>
+    )
+}
+
 export function DefaultLandingComponent() {
     const [actionOpen, setActionOpen] = useState(false)
     const [hoveredSat, setHoveredSat] = useState(null)
+    const [isCompactHero, setIsCompactHero] = useState(() =>
+        typeof window !== 'undefined' ? window.innerWidth <= 860 : false
+    )
     const [scope, setScope] = useState('me')
     const [refreshNonce, setRefreshNonce] = useState(0)
     const [cardValues, setCardValues] = useState({
@@ -169,11 +266,19 @@ export function DefaultLandingComponent() {
         travelClaimedAmount: 0,
         travelClaimedCount: 0,
     })
+    const [cardRecords, setCardRecords] = useState({
+        travel: { total: [], submitted: [], claimed: [] },
+        advance: { total: [], submitted: [], claimed: [] },
+        expense: { total: [], submitted: [], claimed: [] },
+    })
     const [pendingCounts, setPendingCounts] = useState({
         expense: 0,
         advance: 0,
         travel: 0,
     })
+    const [recordsFocus, setRecordsFocus] = useState(null)
+    const recordsSectionRef = useRef(null)
+    const recordsPulseTimerRef = useRef(null)
     /** Full user profile includes accurate `Company`; `kf.user.Company` may be empty — overwritten after `/user/2/...` fetch. */
     const [resolvedCompany, setResolvedCompany] = useState(() =>
         String(kf?.user?.Company || '').trim()
@@ -197,6 +302,18 @@ export function DefaultLandingComponent() {
         }
         return 'https://refex.group/uploads/images/general/general/general-general-refexlogo-1770112732644-292185.png'
     }, [userCompanyLower])
+
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 860px)')
+        const sync = () => setIsCompactHero(media.matches)
+        sync()
+        if (media.addEventListener) media.addEventListener('change', sync)
+        else media.addListener(sync)
+        return () => {
+            if (media.removeEventListener) media.removeEventListener('change', sync)
+            else media.removeListener(sync)
+        }
+    }, [])
 
     useEffect(() => {
         if (!accountId || !userId || typeof kf?.api !== 'function') return
@@ -235,8 +352,8 @@ export function DefaultLandingComponent() {
             : currentRoleRaw && typeof currentRoleRaw === 'object'
               ? currentRoleRaw.Name || currentRoleRaw.name || ''
               : ''
-    // Show toggle only when current role is not Employee.
-    const showScopeToggle =
+    // Keep both choices visible; team navigation remains role-gated.
+    const canViewTeam =
         String(currentRoleName).trim().toLowerCase() !== 'employee'
 
     const now = new Date()
@@ -246,6 +363,7 @@ export function DefaultLandingComponent() {
         day: 'numeric',
         year: 'numeric',
     })
+    const currentDateLabelShort = `${now.toLocaleDateString('en-US', { weekday: 'short' })} ${now.getDate()} ${now.toLocaleDateString('en-US', { month: 'short' })}`
     const hour = now.getHours()
     const greetingText =
         hour < 12
@@ -315,6 +433,8 @@ export function DefaultLandingComponent() {
                     'All_Items_A00'
                 )
 
+                const expenseSubmittedRows = []
+                const expenseClaimedRows = []
                 let expenseSubmittedAmount = 0
                 let expenseSubmittedCount = 0
                 let expenseClaimedAmount = 0
@@ -341,12 +461,16 @@ export function DefaultLandingComponent() {
                     if (isClaimed) {
                         expenseClaimedCount += 1
                         expenseClaimedAmount += amount
+                        expenseClaimedRows.push(row)
                     } else {
                         expenseSubmittedCount += 1
                         expenseSubmittedAmount += amount
+                        expenseSubmittedRows.push(row)
                     }
                 }
 
+                const advanceSubmittedRows = []
+                const advanceClaimedRows = []
                 let advanceSubmittedAmount = 0
                 let advanceSubmittedCount = 0
                 let advanceClaimedAmount = 0
@@ -368,12 +492,16 @@ export function DefaultLandingComponent() {
                     if (isClaimed) {
                         advanceClaimedCount += 1
                         advanceClaimedAmount += amount
+                        advanceClaimedRows.push(row)
                     } else {
                         advanceSubmittedCount += 1
                         advanceSubmittedAmount += amount
+                        advanceSubmittedRows.push(row)
                     }
                 }
 
+                const travelSubmittedRows = []
+                const travelClaimedRows = []
                 let travelSubmittedAmount = 0
                 let travelSubmittedCount = 0
                 let travelClaimedAmount = 0
@@ -394,6 +522,7 @@ export function DefaultLandingComponent() {
                         travelClaimedAmount += toNumber(
                             row?.['Column_PQUfwzpDbz']
                         )
+                        travelClaimedRows.push(row)
                     } else {
                         travelSubmittedCount += 1
                         const submittedAmt = toNumber(
@@ -402,8 +531,27 @@ export function DefaultLandingComponent() {
                                 row?.['Column_c-kvPWMFjW']
                         )
                         travelSubmittedAmount += submittedAmt
+                        travelSubmittedRows.push(row)
                     }
                 }
+
+                setCardRecords({
+                    travel: {
+                        submitted: travelSubmittedRows,
+                        claimed: travelClaimedRows,
+                        total: [...travelSubmittedRows, ...travelClaimedRows],
+                    },
+                    advance: {
+                        submitted: advanceSubmittedRows,
+                        claimed: advanceClaimedRows,
+                        total: [...advanceSubmittedRows, ...advanceClaimedRows],
+                    },
+                    expense: {
+                        submitted: expenseSubmittedRows,
+                        claimed: expenseClaimedRows,
+                        total: [...expenseSubmittedRows, ...expenseClaimedRows],
+                    },
+                })
 
                 setCardValues({
                     expenseSubmittedAmount,
@@ -495,6 +643,83 @@ export function DefaultLandingComponent() {
 
     const refreshAll = () => setRefreshNonce((n) => n + 1)
 
+    const scrollToRecords = useCallback(() => {
+        const align = () => {
+            const el = recordsSectionRef.current
+            if (!el) return
+            const root =
+                typeof document !== 'undefined'
+                    ? document.querySelector('.rootDiv') ||
+                      el.closest('[data-scroll-root]') ||
+                      null
+                    : null
+            const offset = 16
+            if (root) {
+                const top =
+                    el.getBoundingClientRect().top -
+                    root.getBoundingClientRect().top +
+                    root.scrollTop -
+                    offset
+                root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+                return
+            }
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+        requestAnimationFrame(() => requestAnimationFrame(align))
+    }, [])
+
+    const clearRecordsFocus = useCallback(() => {
+        setRecordsFocus(null)
+        if (recordsPulseTimerRef.current) {
+            clearTimeout(recordsPulseTimerRef.current)
+            recordsPulseTimerRef.current = null
+        }
+    }, [])
+
+    const handleMetricClick = useCallback(
+        (focusKey) => {
+            const focus = CARD_FOCUS[focusKey]
+            if (!focus) return
+            if (recordsFocus?.key === focusKey) {
+                clearRecordsFocus()
+                return
+            }
+            const token = Date.now()
+            const rows = cardRecords?.[focus.processKey]?.[focus.bucket] || []
+            setRecordsFocus({
+                key: focusKey,
+                token,
+                pulse: true,
+                ...focus,
+                rows,
+            })
+            scrollToRecords()
+            if (recordsPulseTimerRef.current) clearTimeout(recordsPulseTimerRef.current)
+            recordsPulseTimerRef.current = setTimeout(() => {
+                setRecordsFocus((prev) =>
+                    prev?.token === token ? { ...prev, pulse: false } : prev,
+                )
+            }, 2400)
+        },
+        [cardRecords, clearRecordsFocus, recordsFocus?.key, scrollToRecords],
+    )
+
+    useEffect(
+        () => () => {
+            if (recordsPulseTimerRef.current) clearTimeout(recordsPulseTimerRef.current)
+        },
+        [],
+    )
+
+    useEffect(() => {
+        setRecordsFocus((prev) => {
+            if (!prev?.processKey || !prev?.bucket) return prev
+            const nextRows = cardRecords?.[prev.processKey]?.[prev.bucket]
+            if (!Array.isArray(nextRows) || prev.rows === nextRows) return prev
+            return { ...prev, rows: nextRows }
+        })
+    }, [cardRecords])
+
     const markPopupOpened = () => {
         try {
             window.__KF_DASH_POPUP_SEQ__ =
@@ -571,6 +796,8 @@ export function DefaultLandingComponent() {
         try {
             markPopupOpened()
             kf.app.page.openPopup(popupId)
+            setActionOpen(false)
+            setTimeout(refreshAll, 1500)
         } catch (e) {
             console.error('openPopup failed', e)
             return
@@ -586,6 +813,11 @@ export function DefaultLandingComponent() {
     }
 
     const handleEmployeeScopeSwitch = async (nextScope) => {
+        if (nextScope === 'team' && !canViewTeam) {
+            setScope('me')
+            kf?.client?.showInfo?.('My Team is available for manager roles.')
+            return
+        }
         setScope(nextScope)
         if (nextScope === 'team') {
             await openManagerDashboard()
@@ -595,12 +827,22 @@ export function DefaultLandingComponent() {
     return (
         <div className="min-h-screen overflow-y-auto bg-gradient-to-b from-[#edf1ff] via-[#f6f8ff] to-[#F3F6FB]">
             <div className="mx-auto max-w-[1800px] space-y-3 p-1.5 pb-6 sm:space-y-4 sm:p-4 lg:space-y-6 lg:p-6">
+                <MobileWelcomeCard
+                    greetingText={greetingText}
+                    userName={userName}
+                    scope={scope}
+                    onScopeChange={handleEmployeeScopeSwitch}
+                    onRefresh={refreshAll}
+                    teamDisabled={!canViewTeam}
+                    createOpen={actionOpen}
+                    onToggleCreate={() => setActionOpen((open) => !open)}
+                    onCreate={openPopup}
+                />
                 <div
-                    className="travel-hero rounded-xl sm:rounded-2xl relative overflow-hidden animate-fade-in-up border border-white/80"
+                    className={`travel-hero rounded-xl sm:rounded-2xl relative animate-fade-in-up border border-white/80 ${actionOpen ? 'is-create-open' : ''}`}
                     style={{
                         background:
                             'radial-gradient(circle at 72% 10%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(105deg, #2f87c8 0%, #51a6d8 58%, #7dbfe4 100%)',
-                        padding: '12px 16px',
                     }}
                 >
                     <div className="travel-hero-art" aria-hidden="true">
@@ -614,36 +856,67 @@ export function DefaultLandingComponent() {
                         <span className="travel-hero-quote">“New places.<br />Greater possibilities.”</span>
                     </div>
 
-                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-4">
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                            {/*<img
-                                src={companyLogoSrc}
-                                alt=""
-                                className="h-9 w-auto max-h-[52px] sm:h-12 sm:max-h-14 object-contain flex-shrink-0 rounded-md bg-white/5 p-0.5"
-                                loading="lazy"
-                                decoding="async"
-                            />*/}
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 mb-0.5 sm:mb-1">
-                                    <span
-                                        className="text-[9px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full"
-                                        style={{
-                                            background:
-                                                'rgba(255,255,255,0.12)',
-                                            color: 'rgba(255,255,255,0.8)',
-                                        }}
-                                    >
-                                        {currentDateLabel}
-                                    </span>
-                                    {/* <span className="text-xs px-2.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(125,194,68,0.25)', color: '#b3f07e' }}>
-                                    ● All systems normal
-                                </span> */}
+                    <div className="travel-hero-content relative z-10">
+                        <div className="travel-hero-main">
+                            <div className="travel-hero-head">
+                                <span className="travel-hero-date">
+                                    <span className="travel-hero-date-short">{currentDateLabelShort}</span>
+                                    <span className="travel-hero-date-long">{currentDateLabel}</span>
+                                </span>
+                                <div
+                                    className="travel-hero-scope travel-hero-scope--bar inline-flex rounded-xl p-0.5 gap-0.5"
+                                    style={{
+                                        background: 'rgba(0,0,0,0.22)',
+                                        border: '1px solid rgba(255,255,255,0.15)',
+                                    }}
+                                    role="group"
+                                    aria-label="Dashboard scope"
+                                >
+                                    {[
+                                        { id: 'me', label: 'Me', short: 'Me' },
+                                        { id: 'team', label: 'My Team', short: 'Team' },
+                                    ].map((opt) => {
+                                        const active = scope === opt.id
+                                        const restricted = opt.id === 'team' && !canViewTeam
+                                        return (
+                                            <button
+                                                key={`bar-${opt.id}`}
+                                                type="button"
+                                                onClick={() => handleEmployeeScopeSwitch(opt.id)}
+                                                aria-disabled={restricted}
+                                                title={restricted ? 'Available for manager roles' : undefined}
+                                                className="travel-hero-scope-btn"
+                                                style={
+                                                    active
+                                                        ? {
+                                                              background: 'rgba(255,255,255,0.95)',
+                                                              color: '#0D1F3C',
+                                                              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                                                          }
+                                                        : {
+                                                              background: 'transparent',
+                                                              color: restricted
+                                                                  ? 'rgba(255,255,255,0.46)'
+                                                                  : 'rgba(255,255,255,0.78)',
+                                                          }
+                                                }
+                                            >
+                                                <span className="travel-hero-scope-short">{opt.short}</span>
+                                                <span className="travel-hero-scope-long">
+                                                    {opt.id === 'team' ? <>My<br />Team</> : opt.label}
+                                                </span>
+                                            </button>
+                                        )
+                                    })}
                                 </div>
-                                <h1 className="text-white text-[15px] sm:text-2xl font-bold leading-tight mt-1 sm:mt-2 break-words">
-                                    {greetingText}, {userName}! 👋
-                                </h1>
-                                <p className="text-white/70 text-[9px] sm:text-sm mt-0.5 sm:mt-1.5 max-w-full sm:max-w-md">
-                                    {companyDisplayName || 'Refex Group'}
+                            </div>
+                            <div className="travel-hero-copy">
+                            <h1 className="travel-hero-title">
+                                <span className="travel-hero-greeting">{greetingText}</span>
+                                <span className="travel-hero-name">{userName}! 👋</span>
+                            </h1>
+                            <p className="travel-hero-company">
+                                {companyDisplayName || 'Refex Group'}
                                     {/* You have{' '} */}
                                     {/* <span className="font-semibold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(238,106,49,0.35)', color: '#ffc9a0' }}>
                                     {totalPending} pending requests
@@ -653,113 +926,67 @@ export function DefaultLandingComponent() {
                                 <span className="font-semibold" style={{ color: '#BFF59A' }}>Travel Advance {pendingCounts.advance}</span>,{' '}
                                 <span className="font-semibold" style={{ color: '#FFD2B5' }}>Travel Expense {pendingCounts.expense}</span>
                                 ). */}
-                                </p>
+                            </p>
                             </div>
                         </div>
 
-                        <div className="travel-hero-actions flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 flex-shrink-0 w-full lg:w-auto">
-                            <div className="sm:hidden w-full">
-                                <div className="flex flex-wrap items-center justify-center gap-1 mb-1">
+                        <div className="travel-hero-aside">
+                            {isCompactHero ? (
+                                <div className={`create-tray ${actionOpen ? 'is-open' : ''}`}>
                                     <button
-                                        onClick={() => openPopup('travel')}
-                                        className="flex items-center gap-1 cursor-pointer whitespace-nowrap rounded-md px-1.5 py-1"
-                                        style={{
-                                            background:
-                                                'linear-gradient(135deg, #2879b6, #3a9ad9)',
-                                            boxShadow:
-                                                '0 6px 18px rgba(40,121,182,0.35)',
-                                        }}
-
+                                        type="button"
+                                        className="create-tray-toggle"
+                                        aria-label={actionOpen ? 'Close create menu' : 'Create a new request'}
+                                        aria-expanded={actionOpen}
+                                        onClick={() => setActionOpen((open) => !open)}
                                     >
-                                        <div
-                                            className="w-3.5 h-3.5 flex items-center justify-center rounded-md flex-shrink-0"
-                                            style={{
-                                                background:
-                                                    'rgba(255,255,255,0.22)',
-                                            }}
-                                        >
-                                            <i
-                                                className="ri-flight-takeoff-line text-white"
-                                                style={{ fontSize: '11px' }}
-                                            />
-                                        </div>
-                                        <span className="text-white text-[9px] font-semibold tracking-wide">
-                                            Travel Booking
-                                        </span>
+                                        <i className={`ri-add-line ${actionOpen ? 'is-open' : ''}`} aria-hidden="true" />
+                                        <span>{actionOpen ? 'Close' : 'New request'}</span>
                                     </button>
-                                    <button
-                                        onClick={() => openPopup('advance')}
-                                        className="flex items-center gap-1 cursor-pointer whitespace-nowrap rounded-md px-1.5 py-1"
-                                        style={{
-                                            background:
-                                                'linear-gradient(135deg, #7dc244, #a3d96a)',
-                                            boxShadow:
-                                                '0 6px 18px rgba(125,194,68,0.35)',
-                                        }}
-                                    >
-                                        <div
-                                            className="w-3.5 h-3.5 flex items-center justify-center rounded-md flex-shrink-0"
-                                            style={{
-                                                background:
-                                                    'rgba(255,255,255,0.22)',
-                                            }}
-                                        >
-                                            <i
-                                                className="ri-wallet-3-line text-white"
-                                                style={{ fontSize: '11px' }}
-                                            />
+                                    {actionOpen ? (
+                                        <div className="create-tray-list" role="menu" aria-label="Create request">
+                                            {[
+                                                { key: 'travel', label: 'Travel Booking', color: '#1E88E5', to: '#42A5F5' },
+                                                { key: 'advance', label: 'Travel Advance', color: '#43A047', to: '#66BB6A' },
+                                                { key: 'expense', label: 'Travel Expense', color: '#FB8C00', to: '#FFA726' },
+                                            ].map((action) => (
+                                                <button
+                                                    key={action.key}
+                                                    type="button"
+                                                    role="menuitem"
+                                                    className="create-tray-item"
+                                                    style={{
+                                                        '--satellite-accent': action.color,
+                                                        '--satellite-accent-to': action.to,
+                                                    }}
+                                                    onClick={() => openPopup(action.key)}
+                                                >
+                                                    {action.label}
+                                                </button>
+                                            ))}
                                         </div>
-                                        <span className="text-white text-[9px] font-semibold tracking-wide">
-                                            Travel Advance
-                                        </span>
-                                    </button>
-                                    <button
-                                        onClick={() => openPopup('expense')}
-                                        className="flex items-center gap-1 cursor-pointer whitespace-nowrap rounded-md px-1.5 py-1"
-                                        style={{
-                                            background:
-                                                'linear-gradient(135deg, #ee6a31, #f5924e)',
-                                            boxShadow:
-                                                '0 6px 18px rgba(238,106,49,0.35)',
-                                        }}
-                                    >
-                                        <div
-                                            className="w-3.5 h-3.5 flex items-center justify-center rounded-md flex-shrink-0"
-                                            style={{
-                                                background:
-                                                    'rgba(255,255,255,0.22)',
-                                            }}
-                                        >
-                                            <i
-                                                className="ri-receipt-line text-white"
-                                                style={{ fontSize: '11px' }}
-                                            />
-                                        </div>
-                                        <span className="text-white text-[9px] font-semibold tracking-wide">
-                                            Travel Expense
-                                        </span>
-                                    </button>
+                                    ) : null}
                                 </div>
-                            </div>
+                            ) : (
                             <div
-                                className="relative self-end sm:self-auto scale-[0.9] sm:scale-100 origin-right hidden sm:block"
-                                style={{
-                                    width: '220px',
-                                    height: '118px',
-                                    maxWidth: '100%',
-                                }}
+                                className={`satellite-create ${actionOpen ? 'is-open' : ''}`}
                                 onMouseEnter={() => setActionOpen(true)}
                                 onMouseLeave={() => {
                                     setActionOpen(false)
                                     setHoveredSat(null)
                                 }}
                             >
+                            <div
+                                className={`satellite-orbit relative origin-right ${actionOpen ? 'is-open' : ''}`}
+                            >
                                 <button
                                     onClick={() => openPopup('travel')}
                                     onMouseEnter={() => setHoveredSat(0)}
                                     onMouseLeave={() => setHoveredSat(null)}
-                                    className="absolute flex items-center gap-2 cursor-pointer whitespace-nowrap rounded-xl satellite-pill"
+                                    className="absolute flex items-center gap-2 cursor-pointer whitespace-nowrap rounded-xl satellite-pill satellite-action"
                                     style={{
+                                        '--satellite-accent': '#2879b6',
+                                        '--satellite-accent-to': '#3a9ad9',
                                         height: '32px',
                                         padding: '0 12px 0 7px',
                                         top: '43px',
@@ -785,19 +1012,7 @@ export function DefaultLandingComponent() {
                                         transformOrigin: 'right center',
                                     }}
                                 >
-                                    <div
-                                        className="w-5 h-5 flex items-center justify-center rounded-md flex-shrink-0"
-                                        style={{
-                                            background:
-                                                'rgba(255,255,255,0.22)',
-                                        }}
-                                    >
-                                        <i
-                                            className="ri-flight-takeoff-line text-white"
-                                            style={{ fontSize: '11px' }}
-                                        />
-                                    </div>
-                                    <span className="text-white text-xs font-semibold tracking-wide">
+                                    <span className="satellite-action-label">
                                         Travel Booking
                                     </span>
                                 </button>
@@ -806,8 +1021,10 @@ export function DefaultLandingComponent() {
                                     onClick={() => openPopup('advance')}
                                     onMouseEnter={() => setHoveredSat(1)}
                                     onMouseLeave={() => setHoveredSat(null)}
-                                    className="absolute flex items-center gap-2 cursor-pointer whitespace-nowrap rounded-xl satellite-pill"
+                                    className="absolute flex items-center gap-2 cursor-pointer whitespace-nowrap rounded-xl satellite-pill satellite-action"
                                     style={{
+                                        '--satellite-accent': '#7dc244',
+                                        '--satellite-accent-to': '#a3d96a',
                                         height: '32px',
                                         padding: '0 12px 0 7px',
                                         top: '43px',
@@ -833,19 +1050,7 @@ export function DefaultLandingComponent() {
                                         transformOrigin: 'right center',
                                     }}
                                 >
-                                    <div
-                                        className="w-5 h-5 flex items-center justify-center rounded-md flex-shrink-0"
-                                        style={{
-                                            background:
-                                                'rgba(255,255,255,0.22)',
-                                        }}
-                                    >
-                                        <i
-                                            className="ri-wallet-3-line text-white"
-                                            style={{ fontSize: '11px' }}
-                                        />
-                                    </div>
-                                    <span className="text-white text-xs font-semibold tracking-wide">
+                                    <span className="satellite-action-label">
                                         Travel Advance
                                     </span>
                                 </button>
@@ -854,8 +1059,10 @@ export function DefaultLandingComponent() {
                                     onClick={() => openPopup('expense')}
                                     onMouseEnter={() => setHoveredSat(2)}
                                     onMouseLeave={() => setHoveredSat(null)}
-                                    className="absolute flex items-center gap-2 cursor-pointer whitespace-nowrap rounded-xl satellite-pill"
+                                    className="absolute flex items-center gap-2 cursor-pointer whitespace-nowrap rounded-xl satellite-pill satellite-action"
                                     style={{
+                                        '--satellite-accent': '#ee6a31',
+                                        '--satellite-accent-to': '#f5924e',
                                         height: '32px',
                                         padding: '0 12px 0 7px',
                                         top: '43px',
@@ -881,19 +1088,7 @@ export function DefaultLandingComponent() {
                                         transformOrigin: 'right center',
                                     }}
                                 >
-                                    <div
-                                        className="w-5 h-5 flex items-center justify-center rounded-md flex-shrink-0"
-                                        style={{
-                                            background:
-                                                'rgba(255,255,255,0.22)',
-                                        }}
-                                    >
-                                        <i
-                                            className="ri-receipt-line text-white"
-                                            style={{ fontSize: '11px' }}
-                                        />
-                                    </div>
-                                    <span className="text-white text-xs font-semibold tracking-wide">
+                                    <span className="satellite-action-label">
                                         Travel Expense
                                     </span>
                                 </button>
@@ -912,7 +1107,11 @@ export function DefaultLandingComponent() {
                                 )}
 
                                 <button
-                                    className="absolute rounded-full flex items-center justify-center cursor-pointer"
+                                    type="button"
+                                    className="satellite-hub absolute rounded-full flex items-center justify-center cursor-pointer"
+                                    aria-label={actionOpen ? 'Close create menu' : 'Open create menu'}
+                                    aria-expanded={actionOpen}
+                                    onClick={() => setActionOpen((open) => !open)}
                                     style={{
                                         width: '44px',
                                         height: '44px',
@@ -945,55 +1144,55 @@ export function DefaultLandingComponent() {
                                     />
                                 </button>
                             </div>
-
-                            {showScopeToggle && (
-                                <div
-                                    className="inline-flex rounded-xl p-0.5 sm:p-1 gap-0.5 self-center sm:self-auto scale-95 sm:scale-100"
-                                    style={{
-                                        background: 'rgba(0,0,0,0.22)',
-                                        border: '1px solid rgba(255,255,255,0.15)',
-                                        zIndex: 40,
-                                    }}
-                                    role="group"
-                                    aria-label="Dashboard scope"
-                                >
-                                    {[
-                                        { id: 'me', label: 'Me' },
-                                        { id: 'team', label: 'My Team' },
-                                    ].map((opt) => {
-                                        const active = scope === opt.id
-                                        return (
-                                            <button
-                                                key={opt.id}
-                                                type="button"
-                                                onClick={() =>
-                                                    handleEmployeeScopeSwitch(
-                                                        opt.id
-                                                    )
-                                                }
-                                                className="px-1.5 sm:px-4 py-1 sm:py-2 rounded-lg text-[9px] sm:text-xs font-semibold transition-all min-w-[58px] sm:min-w-[88px]"
-                                                style={
-                                                    active
-                                                        ? {
-                                                              background:
-                                                                  'rgba(255,255,255,0.95)',
-                                                              color: '#0D1F3C',
-                                                              boxShadow:
-                                                                  '0 2px 8px rgba(0,0,0,0.12)',
-                                                          }
-                                                        : {
-                                                              background:
-                                                                  'transparent',
-                                                              color: 'rgba(255,255,255,0.78)',
-                                                          }
-                                                }
-                                            >
-                                                {opt.label}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
+                            </div>
                             )}
+
+                            <div
+                                className="travel-hero-scope travel-hero-scope--aside inline-flex rounded-xl p-0.5 gap-0.5"
+                                style={{
+                                    background: 'rgba(0,0,0,0.22)',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                }}
+                                role="group"
+                                aria-label="Dashboard scope"
+                            >
+                                {[
+                                    { id: 'me', label: 'Me', short: 'Me' },
+                                    { id: 'team', label: 'My Team', short: 'Team' },
+                                ].map((opt) => {
+                                    const active = scope === opt.id
+                                    const restricted = opt.id === 'team' && !canViewTeam
+                                    return (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => handleEmployeeScopeSwitch(opt.id)}
+                                            aria-disabled={restricted}
+                                            title={restricted ? 'Available for manager roles' : undefined}
+                                            className="travel-hero-scope-btn"
+                                            style={
+                                                active
+                                                    ? {
+                                                          background: 'rgba(255,255,255,0.95)',
+                                                          color: '#0D1F3C',
+                                                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                                                      }
+                                                    : {
+                                                          background: 'transparent',
+                                                          color: restricted
+                                                              ? 'rgba(255,255,255,0.46)'
+                                                              : 'rgba(255,255,255,0.78)',
+                                                      }
+                                            }
+                                        >
+                                            <span className="travel-hero-scope-short">{opt.short}</span>
+                                            <span className="travel-hero-scope-long">
+                                                {opt.id === 'team' ? <>My<br />Team</> : opt.label}
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1034,11 +1233,15 @@ export function DefaultLandingComponent() {
                                 ? 'Total'
                                 : 'Submitted'
                             const claimedLabel = isTravel ? 'Booked' : 'Claimed'
+                            const submittedFocusKey = `${card.key}-${isTravel ? 'total' : 'submitted'}`
+                            const claimedFocusKey = `${card.key}-claimed`
+                            const submittedActive = recordsFocus?.key === submittedFocusKey
+                            const claimedActive = recordsFocus?.key === claimedFocusKey
 
                             return (
                                 <div
                                     key={card.key}
-                                    className="employee-kpi-card rounded-lg sm:rounded-2xl overflow-hidden card-lift animate-fade-in-up"
+                                    className="employee-kpi-card rounded-lg sm:rounded-2xl card-lift animate-fade-in-up"
                                     style={{
                                         background: '#ffffff',
                                         border: `1px solid ${card.color}26`,
@@ -1061,34 +1264,43 @@ export function DefaultLandingComponent() {
                                     >
                                         <div className="flex items-center">
                                             <span
-                                                className="font-bold text-[10px] sm:text-sm tracking-wide"
+                                                className="font-bold text-[13px] sm:text-sm tracking-normal sm:tracking-wide"
                                                 style={{ color: '#101828' }}
                                             >
                                                 {card.label}
                                             </span>
                                         </div>
                                         <div className="flex">
-                                            <div
-                                                className="w-10 h-10 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center card-icon"
+                                            <button
+                                                type="button"
+                                                className="w-9 h-9 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center card-icon"
                                                 style={{
                                                     background: '#ffffff',
                                                     border: `1px solid ${card.color}3A`,
                                                 }}
+                                                aria-label={`Create ${card.label}`}
+                                                title={`Create ${card.label}`}
+                                                onClick={() => openPopup(card.popupKey)}
                                             >
                                                 <span className="card-icon-glow" aria-hidden="true" />
                                                 <span className="card-icon-shine" aria-hidden="true" />
                                                 <img className="card-icon-image" src={card.iconAsset} alt="" aria-hidden="true" />
-                                            </div>
+                                            </button>
                                         </div>
                                     </div>
 
                                     <div className="employee-kpi-body grid grid-cols-2">
-                                        <div
-                                            className="employee-kpi-metric px-2 sm:px-5 py-2 sm:py-4"
+                                        <button
+                                            type="button"
+                                            className={`employee-kpi-metric px-2 sm:px-5 py-2 sm:py-4 text-left ${submittedActive ? 'is-active' : ''}`}
+                                            aria-pressed={submittedActive}
+                                            onClick={() => handleMetricClick(submittedFocusKey)}
                                             style={{
                                                 borderRight:
                                                     '1px solid #E6ECF4',
-                                                background: '#FCFDFE',
+                                                background: submittedActive
+                                                    ? card.colorLight
+                                                    : '#FCFDFE',
                                             }}
                                         >
                                             <div className="flex items-center gap-1 mb-1 sm:mb-2">
@@ -1098,24 +1310,18 @@ export function DefaultLandingComponent() {
                                                         background: card.color,
                                                     }}
                                                 />
-                                                <span className="text-[#475467] text-[8px] sm:text-xs font-medium uppercase tracking-wider">
+                                                <span className="text-[#475467] text-[10px] sm:text-xs font-medium uppercase tracking-wide sm:tracking-wider">
                                                     {submittedLabel}
                                                 </span>
                                             </div>
                                             {isTravel ? (
                                                 <>
-                                                    <p className="text-[#101828] text-[13px] sm:text-xl font-bold leading-tight animate-count-up tabular-nums">
+                                                    <p className="kpi-amount text-[#101828] text-[15px] sm:text-xl font-bold leading-tight animate-count-up tabular-nums">
                                                         <AnimatedInt
                                                             value={
                                                                 travelBookingTotalCount
                                                             }
                                                         />
-                                                    </p>
-                                                    <p
-                                                        className="text-[#667085] text-[8px] sm:text-xs mt-0.5 invisible"
-                                                        aria-hidden
-                                                    >
-                                                        INR
                                                     </p>
                                                     <div className="mt-1 sm:mt-2 flex items-center gap-1">
                                                         <div
@@ -1132,7 +1338,7 @@ export function DefaultLandingComponent() {
                                                                 }}
                                                             />
                                                         </div>
-                                                        <span className="text-[#344054] text-[8px] sm:text-xs font-semibold">
+                                                        <span className="text-[#344054] text-[11px] sm:text-xs font-semibold">
                                                             {travelBookingTotalCount ===
                                                             1
                                                                 ? 'Request'
@@ -1142,14 +1348,14 @@ export function DefaultLandingComponent() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <p className="text-[#101828] text-[13px] sm:text-xl font-bold leading-tight animate-count-up">
+                                                    <p className="kpi-amount text-[#101828] text-[15px] sm:text-xl font-bold leading-tight animate-count-up">
                                                         <AnimatedINR
                                                             value={
                                                                 submittedAmount
                                                             }
                                                         />
                                                     </p>
-                                                    <p className="text-[#667085] text-[8px] sm:text-xs mt-0.5">
+                                                    <p className="kpi-currency text-[#667085] text-[10px] sm:text-xs mt-0.5">
                                                         INR
                                                     </p>
                                                     <div className="mt-1 sm:mt-2 flex items-center gap-1">
@@ -1167,7 +1373,7 @@ export function DefaultLandingComponent() {
                                                                 }}
                                                             />
                                                         </div>
-                                                        <span className="text-[#344054] text-[8px] sm:text-xs font-semibold">
+                                                        <span className="text-[#344054] text-[11px] sm:text-xs font-semibold">
                                                             <AnimatedInt
                                                                 value={
                                                                     submittedCount
@@ -1178,11 +1384,18 @@ export function DefaultLandingComponent() {
                                                     </div>
                                                 </>
                                             )}
-                                        </div>
+                                        </button>
 
-                                        <div
-                                            className="employee-kpi-metric px-2 sm:px-5 py-2 sm:py-4"
-                                            style={{ background: '#FFFFFF' }}
+                                        <button
+                                            type="button"
+                                            className={`employee-kpi-metric px-2 sm:px-5 py-2 sm:py-4 text-left ${claimedActive ? 'is-active' : ''}`}
+                                            aria-pressed={claimedActive}
+                                            onClick={() => handleMetricClick(claimedFocusKey)}
+                                            style={{
+                                                background: claimedActive
+                                                    ? card.colorLight
+                                                    : '#FFFFFF',
+                                            }}
                                         >
                                             <div className="flex items-center gap-1 mb-1 sm:mb-2">
                                                 <div
@@ -1191,16 +1404,16 @@ export function DefaultLandingComponent() {
                                                         background: card.color,
                                                     }}
                                                 />
-                                                <span className="text-[#475467] text-[8px] sm:text-xs font-medium uppercase tracking-wider">
+                                                <span className="text-[#475467] text-[10px] sm:text-xs font-medium uppercase tracking-wide sm:tracking-wider">
                                                     {claimedLabel}
                                                 </span>
                                             </div>
-                                            <p className="text-[#101828] text-[13px] sm:text-xl font-bold leading-tight animate-count-up">
+                                            <p className="kpi-amount text-[#101828] text-[15px] sm:text-xl font-bold leading-tight animate-count-up">
                                                 <AnimatedINR
                                                     value={claimedAmount}
                                                 />
                                             </p>
-                                            <p className="text-[#667085] text-[8px] sm:text-xs mt-0.5">
+                                            <p className="kpi-currency text-[#667085] text-[10px] sm:text-xs mt-0.5">
                                                 INR
                                             </p>
                                             <div className="mt-1 sm:mt-2 flex items-center gap-1">
@@ -1218,7 +1431,7 @@ export function DefaultLandingComponent() {
                                                         }}
                                                     />
                                                 </div>
-                                                <span className="text-[#344054] text-[8px] sm:text-xs font-semibold">
+                                                <span className="text-[#344054] text-[11px] sm:text-xs font-semibold">
                                                     <AnimatedInt
                                                         value={claimedCount}
                                                     />{' '}
@@ -1229,7 +1442,7 @@ export function DefaultLandingComponent() {
                                                         : 'Requests'}
                                                 </span>
                                             </div>
-                                        </div>
+                                        </button>
                                     </div>
                                 </div>
                             )
@@ -1237,6 +1450,7 @@ export function DefaultLandingComponent() {
                     )}
                 </div>
 
+                {/*
                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-3 sm:gap-4 mb-4">
                     <div className="col-span-1 xl:col-span-3 animate-fade-in-up delay-300">
                         <ExpenseTrendsChart key={`trends-${refreshNonce}`} />
@@ -1248,11 +1462,14 @@ export function DefaultLandingComponent() {
                         />
                     </div>
                 </div>
+                */}
 
-                <div className="animate-fade-in-up delay-500">
+                <div ref={recordsSectionRef} className="animate-fade-in-up delay-500 scroll-mt-4">
                     <PendingApprovalsWidget
                         key={`pending-${refreshNonce}`}
                         onPopupClosed={refreshAll}
+                        insightFilter={recordsFocus}
+                        onClearInsight={clearRecordsFocus}
                     />
                 </div>
             </div>

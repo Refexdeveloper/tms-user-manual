@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="sunGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="cardShadow" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="rgba(0,0,0,0.14)" flood-opacity="1"/>
+    </filter>
+    <filter id="sunShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#f59e0b" flood-opacity="0.4"/>
+    </filter>
+    <linearGradient id="calGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff8ed"/>
+      <stop offset="100%" stop-color="#fff0d0"/>
+    </linearGradient>
+    <linearGradient id="sunGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <radialGradient id="calShine" cx="30%" cy="20%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.45)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Calendar card shadow -->
+  <rect x="70" y="82" width="130" height="140" rx="14" fill="rgba(0,0,0,0.07)" transform="translate(4,10)"/>
+  <!-- Calendar card -->
+  <rect x="70" y="72" width="130" height="142" rx="14" fill="url(#calGrad)" filter="url(#cardShadow)"/>
+  <!-- Calendar header bar -->
+  <rect x="70" y="72" width="130" height="36" rx="14" fill="url(#headerGrad)"/>
+  <rect x="70" y="90" width="130" height="18" fill="url(#headerGrad)"/>
+  <!-- Calendar rings -->
+  <rect x="104" y="60" width="10" height="24" rx="5" fill="#d97706"/>
+  <rect x="142" y="60" width="10" height="24" rx="5" fill="#d97706"/>
+  <!-- Day label -->
+  <text x="135" y="96" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="rgba(255,255,255,0.9)" letter-spacing="1">DAILY</text>
+  <!-- Calendar grid dots -->
+  <circle cx="96" cy="128" r="5" fill="#f59e0b" opacity="0.7"/>
+  <circle cx="116" cy="128" r="5" fill="#d97706" opacity="0.6"/>
+  <circle cx="136" cy="128" r="5" fill="#d97706" opacity="0.6"/>
+  <circle cx="156" cy="128" r="5" fill="#d97706" opacity="0.6"/>
+  <circle cx="176" cy="128" r="5" fill="#d97706" opacity="0.6"/>
+  <circle cx="96" cy="148" r="5" fill="#d97706" opacity="0.5"/>
+  <circle cx="116" cy="148" r="5" fill="#d97706" opacity="0.5"/>
+  <circle cx="136" cy="148" r="7" fill="#f59e0b"/>
+  <circle cx="156" cy="148" r="5" fill="#d97706" opacity="0.5"/>
+  <circle cx="176" cy="148" r="5" fill="#d97706" opacity="0.5"/>
+  <circle cx="96" cy="168" r="5" fill="#d97706" opacity="0.4"/>
+  <circle cx="116" cy="168" r="5" fill="#d97706" opacity="0.4"/>
+  <circle cx="136" cy="168" r="5" fill="#d97706" opacity="0.4"/>
+  <circle cx="156" cy="168" r="5" fill="#d97706" opacity="0.4"/>
+  <!-- Shine on calendar -->
+  <rect x="70" y="72" width="130" height="142" rx="14" fill="url(#calShine)"/>
+  <!-- Sun (overlapping top-left) -->
+  <circle cx="88" cy="80" r="38" fill="url(#sunGrad)" filter="url(#sunShadow)"/>
+  <circle cx="88" cy="80" r="38" fill="url(#calShine)" opacity="0.5"/>
+  <!-- Sun rays -->
+  <g stroke="#fcd34d" stroke-width="4" stroke-linecap="round" opacity="0.9">
+    <line x1="88" y1="31" x2="88" y2="22"/>
+    <line x1="110" y1="37" x2="116" y2="30"/>
+    <line x1="121" y1="58" x2="130" y2="54"/>
+    <line x1="62" y1="37" x2="56" y2="30"/>
+    <line x1="51" y1="58" x2="42" y2="54"/>
+    <line x1="88" y1="125" x2="88" y2="134"/>
+    <line x1="51" y1="100" x2="42" y2="104"/>
+    <line x1="121" y1="100" x2="130" y2="104"/>
+  </g>
+  <!-- Sun face highlight -->
+  <circle cx="80" cy="74" r="10" fill="rgba(255,255,255,0.28)"/>
+</svg>

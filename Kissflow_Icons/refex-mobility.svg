@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  
+  <defs>
+    <filter id="drop-shadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.22"/>
+    </filter>
+    <filter id="glow-badge" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#2563EB" flood-opacity="0.3"/>
+    </filter>
+    <filter id="gold-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#D97706" flood-opacity="0.35"/>
+    </filter>
+
+    <linearGradient id="pinGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#C2410C"/>
+    </linearGradient>
+    <linearGradient id="evCar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="60%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="roadGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="128" cy="226" rx="74" ry="12" fill="#0F172A" opacity="0.16" filter="blur(6px)"/>
+
+  <path d="M 40 216 Q 100 178 140 190 T 226 172" stroke="url(#roadGrad)" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 44 216 Q 100 178 140 190 T 222 172" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="6 6" fill="none" stroke-linecap="round"/>
+
+  <g filter="url(#soft-shadow)">
+    <path d="M 128 32 C 88 32, 58 62, 58 102 C 58 146, 118 206, 128 214 C 138 206, 198 146, 198 102 C 198 62, 168 32, 128 32 Z" fill="url(#pinGrad)"/>
+    <path d="M 128 42 C 158 42, 184 66, 186 98" stroke="#FED7AA" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.7"/>
+
+    <circle cx="128" cy="102" r="48" fill="#FFFFFF"/>
+    <circle cx="128" cy="102" r="44" fill="#F8FAFC"/>
+  </g>
+
+  <g filter="url(#drop-shadow)" transform="translate(86, 76)">
+    <path d="M 8 36 C 8 28, 16 22, 26 20 L 36 10 Q 46 2 60 2 L 72 2 Q 80 2 86 12 L 94 22 C 98 26, 102 30, 102 36 L 102 44 Q 102 46, 98 46 L 10 46 Q 8 46, 8 44 Z" fill="url(#evCar)"/>
+    
+    <path d="M 38 12 L 56 6 L 56 18 L 30 18 Z" fill="#E0F2FE"/>
+    <path d="M 62 6 L 72 6 Q 78 6 82 14 L 86 18 L 62 18 Z" fill="#E0F2FE"/>
+
+    <path d="M 44 26 L 52 26 L 48 34 L 56 34 L 46 44 L 48 36 L 42 36 Z" fill="#FBBF24"/>
+
+    <circle cx="28" cy="44" r="10" fill="#1E293B"/>
+    <circle cx="28" cy="44" r="5" fill="#E2E8F0"/>
+
+    <circle cx="82" cy="44" r="10" fill="#1E293B"/>
+    <circle cx="82" cy="44" r="5" fill="#E2E8F0"/>
+  </g>
+</svg>

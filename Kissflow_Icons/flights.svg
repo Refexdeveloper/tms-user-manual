@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  
+  <defs>
+    <filter id="drop-shadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.22"/>
+    </filter>
+    <filter id="glow-badge" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#2563EB" flood-opacity="0.3"/>
+    </filter>
+    <filter id="gold-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#D97706" flood-opacity="0.35"/>
+    </filter>
+
+    <linearGradient id="planeFuselage3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#F1F5F9"/>
+      <stop offset="100%" stop-color="#CBD5E1"/>
+    </linearGradient>
+    <linearGradient id="planeWingBlue3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="128" cy="226" rx="76" ry="12" fill="#0F172A" opacity="0.14" filter="blur(6px)"/>
+
+  <!-- Dynamic Contrails -->
+  <path d="M 52 216 Q 84 186 112 160" stroke="#BAE6FD" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.7"/>
+  <path d="M 64 226 Q 98 196 126 170" stroke="#BAE6FD" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.5"/>
+
+  <!-- Left Swept Wing -->
+  <g filter="url(#drop-shadow)">
+    <path d="M 104 116 L 76 68 Q 72 62 80 62 L 136 104 Z" fill="url(#planeWingBlue3)"/>
+    <rect x="92" y="86" width="22" height="11" rx="5.5" fill="#94A3B8" transform="rotate(-35 92 86)"/>
+    <ellipse cx="89" cy="88" rx="3.5" ry="6" fill="#1E293B" transform="rotate(-35 89 88)"/>
+  </g>
+
+  <!-- Jet Fuselage -->
+  <g filter="url(#soft-shadow)">
+    <path d="M 64 158 C 54 152, 56 140, 70 128 C 108 94, 158 58, 200 42 C 208 40, 214 44, 210 54 C 194 90, 158 136, 118 164 C 100 176, 76 170, 64 158 Z" fill="url(#planeFuselage3)"/>
+    
+    <path d="M 68 142 Q 80 134 86 142 Q 80 152 68 150 Z" fill="#0284C7"/>
+    <path d="M 70 140 Q 78 134 82 140" stroke="#67E8F9" stroke-width="1.5" fill="none"/>
+
+    <circle cx="98" cy="134" r="3" fill="#0369A1"/>
+    <circle cx="112" cy="122" r="3" fill="#0369A1"/>
+    <circle cx="126" cy="110" r="3" fill="#0369A1"/>
+    <circle cx="140" cy="98" r="3" fill="#0369A1"/>
+    <circle cx="154" cy="86" r="3" fill="#0369A1"/>
+    <circle cx="168" cy="74" r="3" fill="#0369A1"/>
+    <circle cx="182" cy="62" r="3" fill="#0369A1"/>
+
+    <!-- Vertical Stabilizer Tail Fin -->
+    <path d="M 192 52 L 202 12 Q 204 6 208 8 L 208 42 Z" fill="url(#planeWingBlue3)"/>
+    <path d="M 203 11 L 208 8 L 208 22 L 203 22 Z" fill="#60A5FA"/>
+
+    <!-- Horizontal Stabilizer -->
+    <path d="M 198 44 L 226 38 Q 230 36 228 40 L 206 52 Z" fill="url(#planeWingBlue3)"/>
+  </g>
+
+  <!-- Right Swept Wing -->
+  <g filter="url(#drop-shadow)">
+    <path d="M 122 138 L 184 154 Q 190 156 186 160 L 142 164 Z" fill="url(#planeWingBlue3)"/>
+    <path d="M 124 140 L 184 156" stroke="#93C5FD" stroke-width="2" opacity="0.6"/>
+    <rect x="146" y="142" width="24" height="12" rx="6" fill="#E2E8F0" transform="rotate(15 146 142)"/>
+    <ellipse cx="144" cy="144" rx="3.5" ry="6.5" fill="#1E293B" transform="rotate(15 144 144)"/>
+  </g>
+</svg>

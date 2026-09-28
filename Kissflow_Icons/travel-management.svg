@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  
+  <defs>
+    <filter id="drop-shadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.22"/>
+    </filter>
+    <filter id="glow-badge" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#2563EB" flood-opacity="0.3"/>
+    </filter>
+    <filter id="gold-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#D97706" flood-opacity="0.35"/>
+    </filter>
+
+    <linearGradient id="cloudGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="planeFuselage" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#F1F5F9"/>
+      <stop offset="100%" stop-color="#CBD5E1"/>
+    </linearGradient>
+    <linearGradient id="planeWingBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground Shadow -->
+  <ellipse cx="128" cy="226" rx="76" ry="12" fill="#0F172A" opacity="0.14" filter="blur(6px)"/>
+
+  <!-- Back Layer Cloud -->
+  <g filter="url(#drop-shadow)" opacity="0.9">
+    <ellipse cx="165" cy="175" rx="38" ry="24" fill="#E2E8F0"/>
+    <circle cx="140" cy="165" r="26" fill="#E2E8F0"/>
+  </g>
+
+  <!-- 3D Airliner in Isometric View (Facing Forward-Left, Flying Elegantly) -->
+  <!-- Left Wing (Far Wing, Swept Backwards Up-Left) -->
+  <g filter="url(#drop-shadow)">
+    <path d="M 100 120 L 72 74 Q 68 68 76 68 L 132 108 Z" fill="url(#planeWingBlue)"/>
+    <!-- Left Engine -->
+    <rect x="88" y="92" width="22" height="11" rx="5.5" fill="#94A3B8" transform="rotate(-35 88 92)"/>
+    <ellipse cx="85" cy="94" rx="3.5" ry="6" fill="#1E293B" transform="rotate(-35 85 94)"/>
+  </g>
+
+  <!-- Main Fuselage -->
+  <g filter="url(#soft-shadow)">
+    <!-- Aerodynamic Jet Body -->
+    <path d="M 60 162 C 50 156, 52 144, 66 132 C 104 98, 154 62, 196 46 C 204 44, 210 48, 206 58 C 190 94, 154 140, 114 168 C 96 180, 72 174, 60 162 Z" fill="url(#planeFuselage)"/>
+    
+    <!-- Cockpit Windshield (Near the Nose) -->
+    <path d="M 64 146 Q 76 138 82 146 Q 76 156 64 154 Z" fill="#0284C7"/>
+    <path d="M 66 144 Q 74 138 78 144" stroke="#67E8F9" stroke-width="1.5" fill="none"/>
+
+    <!-- Cabin Passenger Windows Along the Side -->
+    <circle cx="94" cy="138" r="3" fill="#0369A1"/>
+    <circle cx="108" cy="126" r="3" fill="#0369A1"/>
+    <circle cx="122" cy="114" r="3" fill="#0369A1"/>
+    <circle cx="136" cy="102" r="3" fill="#0369A1"/>
+    <circle cx="150" cy="90" r="3" fill="#0369A1"/>
+    <circle cx="164" cy="78" r="3" fill="#0369A1"/>
+    <circle cx="178" cy="66" r="3" fill="#0369A1"/>
+
+    <!-- Vertical Stabilizer Tail Fin (Top-Right Tail) -->
+    <path d="M 188 56 L 198 16 Q 200 10 204 12 L 204 46 Z" fill="url(#planeWingBlue)"/>
+    <path d="M 199 15 L 204 12 L 204 26 L 199 26 Z" fill="#60A5FA"/>
+
+    <!-- Horizontal Stabilizer -->
+    <path d="M 194 48 L 222 42 Q 226 40 224 44 L 202 56 Z" fill="url(#planeWingBlue)"/>
+  </g>
+
+  <!-- Right Wing (Near Foreground Wing, Swept Backwards Down-Right) -->
+  <g filter="url(#drop-shadow)">
+    <path d="M 118 142 L 180 158 Q 186 160 182 164 L 138 168 Z" fill="url(#planeWingBlue)"/>
+    <path d="M 120 144 L 180 160" stroke="#93C5FD" stroke-width="2" opacity="0.6"/>
+    <!-- Right Engine -->
+    <rect x="142" y="146" width="24" height="12" rx="6" fill="#E2E8F0" transform="rotate(15 142 146)"/>
+    <ellipse cx="140" cy="148" rx="3.5" ry="6.5" fill="#1E293B" transform="rotate(15 140 148)"/>
+  </g>
+
+  <!-- Front Foreground Puffy 3D Clouds -->
+  <g filter="url(#soft-shadow)">
+    <ellipse cx="80" cy="194" rx="36" ry="22" fill="url(#cloudGrad)"/>
+    <circle cx="112" cy="182" r="28" fill="url(#cloudGrad)"/>
+    <circle cx="148" cy="190" r="24" fill="url(#cloudGrad)"/>
+    <ellipse cx="118" cy="200" rx="48" ry="16" fill="url(#cloudGrad)"/>
+    <ellipse cx="106" cy="170" rx="16" ry="7" fill="#FFFFFF" opacity="0.9"/>
+  </g>
+</svg>

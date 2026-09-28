@@ -11,25 +11,44 @@
     "type": "module",
     "license": "ISC",
     "devDependencies": {
-        "@kissflow/form-field-scripts": "0.0.7",
-        "@kissflow/form-field-config": "0.0.2"
+        "@kissflow/form-field-config": "0.0.2",
+        "@kissflow/form-field-scripts": "0.0.7"
     },
     "engines": {
         "node": "^18.0.0 || >=20.0.0"
     },
     "eslintConfig": {
-        "extends": ["react-app"],
+        "extends": [
+            "react-app"
+        ],
         "rules": {
             "no-restricted-globals": [
                 "error",
-                { "name": "window", "message": "Don't use browser's `window` object." },
-                { "name": "document", "message": "Don't use browser's `document` object." },
-                { "name": "fetch", "message": "Using browser's fetch api is not allowed." },
-                { "name": "XMLHttpRequest", "message": "Using browser's XMLHttpRequest is not allowed." }
+                {
+                    "name": "window",
+                    "message": "Don't use browser's `window` object."
+                },
+                {
+                    "name": "document",
+                    "message": "Don't use browser's `document` object."
+                },
+                {
+                    "name": "fetch",
+                    "message": "Using browser's fetch api is not allowed."
+                },
+                {
+                    "name": "XMLHttpRequest",
+                    "message": "Using browser's XMLHttpRequest is not allowed."
+                }
             ]
         }
     },
-    "keywords": ["kissflow", "custom-components", "travel-booking", "refex-tms"],
+    "keywords": [
+        "kissflow",
+        "custom-components",
+        "travel-booking",
+        "refex-tms"
+    ],
     "dependencies": {
         "react": "^18.2.0",
         "react-dom": "^18.2.0"

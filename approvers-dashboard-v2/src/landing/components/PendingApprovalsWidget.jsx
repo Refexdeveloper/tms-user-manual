@@ -2,6 +2,12 @@ import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import { kf } from '../../sdk/index.js'
 import CurrentStepBadges from './CurrentStepBadges.jsx'
 import SlaCell from './SlaCell.jsx'
+import {
+    customPendingRequestsIcon,
+    customTravelBookingIcon,
+    customTravelAdvanceIcon,
+    customTravelExpenseIcon,
+} from '../../../../raghul_icons/index.js'
 
 class WidgetErrorBoundary extends Component {
     constructor(props) {
@@ -44,9 +50,9 @@ const PAGE_SIZE = 2000
 const MAX_PAGES = 15
 const NEARING_SLA_MS = 48 * 60 * 60 * 1000
 const TABS = [
-    { key: 'travel', label: 'Travel Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_wGLvx_vJ6z', color: '#2879b6', glow: 'rgba(40,121,182,0.45)' },
-    { key: 'advance', label: 'Travel Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_W4HX3YpAL1', color: '#7dc244', glow: 'rgba(125,194,68,0.45)' },
-    { key: 'expense', label: 'Travel Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_I3OfQFU_01', color: '#ee6a31', glow: 'rgba(238,106,49,0.45)' },
+    { key: 'travel', label: 'Travel Booking', short: 'Booking', processId: 'Travel_Management_A02', reportId: 'All_Items_A00', popup: 'Popup_wGLvx_vJ6z', color: '#1E88E5', glow: 'rgba(30,136,229,0.45)', icon: customTravelBookingIcon },
+    { key: 'advance', label: 'Travel Advance', short: 'Advance', processId: 'Advance_Payment_Request_Process_A01', reportId: 'ALL_ITEMS_WITH_TABLE_A00', popup: 'Popup_W4HX3YpAL1', color: '#43A047', glow: 'rgba(67,160,71,0.45)', icon: customTravelAdvanceIcon },
+    { key: 'expense', label: 'Travel Expense', short: 'Expense', processId: 'Expense_Management_A03', reportId: 'All_Items_MK_A00', popup: 'Popup_I3OfQFU_01', color: '#FB8C00', glow: 'rgba(251,140,0,0.45)', icon: customTravelExpenseIcon },
 ]
 const HIDDEN_COLUMNS = ['Column_BliavHBah3', 'Column_RzqotquBQV', 'Column_eFd2LUqnSP']
 
@@ -172,10 +178,38 @@ function travelTypeLabel(key) {
     return '—'
 }
 
-const TRAVEL_TYPE_STYLE = {
-    oneWay: { bg: 'rgba(40,121,182,0.10)', color: '#1e4d72' },
-    roundTrip: { bg: 'rgba(125,194,68,0.14)', color: '#3f6212' },
-    multiCity: { bg: 'rgba(238,106,49,0.12)', color: '#9a3412' },
+function tripRouteIconName(key) {
+    if (key === 'roundTrip') return 'ri-arrow-left-right-line'
+    if (key === 'multiCity') return 'ri-route-line'
+    return 'ri-arrow-right-line'
+}
+
+function TripRouteIcon({ tripTypeKey, label }) {
+    const kind = tripTypeKey || 'oneWay'
+    return (
+        <span
+            className={`trip-route-icon is-${kind}`}
+            title={label || travelTypeLabel(tripTypeKey)}
+            aria-hidden="true"
+        >
+            <i className={tripRouteIconName(tripTypeKey)} />
+        </span>
+    )
+}
+
+function splitTravelRoute(entry) {
+    if (entry?.isMultiCity) {
+        const raw = String(entry.routeSummary || entry.fromText || '')
+        const parts = raw
+            .split(/\s*(?:→|->|—|-)\s*/)
+            .map((part) => part.trim())
+            .filter(Boolean)
+        if (parts.length >= 2) {
+            return { from: parts[0], to: parts[parts.length - 1] }
+        }
+        return { from: raw || '—', to: '—' }
+    }
+    return { from: entry?.fromText || '—', to: entry?.toTextValue || '—' }
 }
 
 function readTravelField(row, key) {
@@ -1115,6 +1149,23 @@ function comparePendingBySlaThenRecent(a, b) {
     return (b?.listSortMs || 0) - (a?.listSortMs || 0)
 }
 
+function classifySlaBucket(deadlineAtMs, now = Date.now()) {
+    if (deadlineAtMs == null || !Number.isFinite(deadlineAtMs)) return 'none'
+    if (now > deadlineAtMs) return 'breached'
+    if (deadlineAtMs <= now + NEARING_SLA_MS) return 'nearing'
+    return 'safe'
+}
+
+function rowMatchesInsight(entry, insightFilter, tabKey) {
+    const bucket = insightFilter?.bucket
+    if (!bucket || bucket === 'pending') return true
+    if (bucket === 'exception') {
+        const excId = EXCEPTION_FIELD_ID[tabKey]
+        return !!(excId && isYesLike(entry?.row?.[excId] ?? entry?.[excId]))
+    }
+    return classifySlaBucket(entry?.deadlineAtMs) === bucket
+}
+
 function getSlaSortRank(entry, now) {
     const deadline = entry?.deadlineAtMs
     const created = entry?.listSortMs || 0
@@ -1270,7 +1321,12 @@ async function countTabPendingForRole(accountId, tab, roleLower) {
         .reduce((sum, s) => sum + (Number(s?.Count) || 0), 0)
 }
 
-function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
+function PendingApprovalsWidgetInner({
+    onPopupClosed,
+    onSummaryChange,
+    insightFilter = null,
+    onClearInsight,
+} = {}) {
     const accountId = useMemo(() => kf?.account?._id, [])
     const appRoles = Array.isArray(kf?.user?.AppRoles)
         ? kf.user.AppRoles
@@ -1324,6 +1380,15 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visibleTabs.length, counts])
+
+    useEffect(() => {
+        if (!insightFilter?.token) return
+        if (insightFilter.processKey) {
+            setActiveKey(insightFilter.processKey)
+        }
+        setCurrentPage(1)
+        setSearchId('')
+    }, [insightFilter?.token, insightFilter?.processKey])
 
     const markPopupOpened = () => {
         try {
@@ -1632,22 +1697,25 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
             return { row, ...view }
         })
         built.sort(comparePendingBySlaThenRecent)
-        return built
-    }, [filteredRowsWithBreach, activeTabKey, expenseFieldIds])
+        if (!insightFilter?.bucket || insightFilter.bucket === 'pending') return built
+        return built.filter((entry) => rowMatchesInsight(entry, insightFilter, 'expense'))
+    }, [filteredRowsWithBreach, activeTabKey, expenseFieldIds, insightFilter?.bucket, insightFilter?.token])
 
     const advanceViewRows = useMemo(() => {
         if (activeTabKey !== 'advance') return null
         const built = filteredRowsWithBreach.map((row) => ({ row, ...buildAdvanceRowView(row) }))
         built.sort(comparePendingBySlaThenRecent)
-        return built
-    }, [filteredRowsWithBreach, activeTabKey])
+        if (!insightFilter?.bucket || insightFilter.bucket === 'pending') return built
+        return built.filter((entry) => rowMatchesInsight(entry, insightFilter, 'advance'))
+    }, [filteredRowsWithBreach, activeTabKey, insightFilter?.bucket, insightFilter?.token])
 
     const travelViewRows = useMemo(() => {
         if (activeTabKey !== 'travel') return null
         const built = filteredRowsWithBreach.map((row) => ({ row, ...buildTravelRowView(row) }))
         built.sort(comparePendingBySlaThenRecent)
-        return built
-    }, [filteredRowsWithBreach, activeTabKey])
+        if (!insightFilter?.bucket || insightFilter.bucket === 'pending') return built
+        return built.filter((entry) => rowMatchesInsight(entry, insightFilter, 'travel'))
+    }, [filteredRowsWithBreach, activeTabKey, insightFilter?.bucket, insightFilter?.token])
 
     const paginationLength =
         activeTabKey === 'expense' && expenseViewRows != null
@@ -1741,36 +1809,72 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
         }
     }
 
+    const tableAccent = activeTab?.color || '#1E88E5'
+
     return (
-        <div className="bg-white rounded-lg sm:rounded-2xl p-1.5 sm:p-4 lg:p-5" style={{ border: '1px solid #f0f0f0', boxShadow: '0 2px 20px rgba(0,0,0,0.04)' }}>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-2.5 sm:mb-4">
-                <h3 className="text-[10px] sm:text-sm font-bold text-gray-800">Pending Requests</h3>
-                <div className="w-full sm:w-auto overflow-x-auto">
-                    <div className="inline-flex items-center gap-1 p-1 rounded-xl min-w-max" style={{ background: '#f5f5f5' }}>
-                    {visibleTabs.map((tab) => {
-                        const isActive = activeKey === tab.key
-                        return (
+        <div
+            className={`records-panel overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl${insightFilter?.pulse ? ' is-insight-pulse' : ''}${insightFilter?.bucket ? ' is-insight-filtered' : ''}`}
+            style={{ '--records-accent': tableAccent }}
+        >
+            <div className="records-header flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white to-[#EEF4FF] px-3 py-3 sm:px-5 sm:py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="records-title-icon flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white sm:h-12 sm:w-12">
+                            <img src={customPendingRequestsIcon} alt="" aria-hidden="true" />
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="text-[15px] font-semibold text-slate-900 sm:text-base">Pending Requests</h3>
+                            <p className="text-[11px] text-slate-500 sm:text-xs">
+                                {insightFilter?.label
+                                    ? `Showing ${insightFilter.label}`
+                                    : 'Team tasks waiting for your action · all processes'}
+                            </p>
+                        </div>
+                        {insightFilter?.label ? (
                             <button
-                                key={tab.key}
-                                onClick={() => setActiveKey(tab.key)}
-                                className="text-[8px] sm:text-xs font-medium px-1 sm:px-3 py-0.5 sm:py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap"
-                                style={
-                                    isActive
-                                        ? { background: tab.color, color: '#fff', boxShadow: `0 1px 4px ${tab.glow}` }
-                                        : { color: '#9CA3AF' }
-                                }
+                                type="button"
+                                className="records-insight-clear"
+                                onClick={() => onClearInsight?.()}
                             >
-                                {tab.label}
+                                Clear filter
                             </button>
-                        )
-                    })}
+                        ) : null}
+                    </div>
                 </div>
-                </div>
+
+                {visibleTabs.length > 0 ? (
+                    <div className="w-full overflow-x-auto hide-scrollbar">
+                        <div className="records-process-tabs inline-flex w-full min-w-max items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-sm sm:rounded-xl">
+                            {visibleTabs.map((tab) => {
+                                const isActive = activeKey === tab.key
+                                return (
+                                    <button
+                                        key={tab.key}
+                                        type="button"
+                                        onClick={() => setActiveKey(tab.key)}
+                                        className={`records-process-tab btn-press ${isActive ? 'is-active' : ''}`}
+                                        style={{ '--tab-color': tab.color, '--tab-glow': tab.glow }}
+                                    >
+                                        <span className="records-process-icon" aria-hidden="true">
+                                            <span className="records-process-glow" />
+                                            <span className="records-process-shine" />
+                                            <img src={tab.icon} alt="" />
+                                        </span>
+                                        <span className="sm:hidden">{tab.short}</span>
+                                        <span className="hidden sm:inline">{tab.label}</span>
+                                        <span className="ml-1 opacity-80">({counts[tab.key] ?? 0})</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                ) : null}
             </div>
 
-            <div className="mb-2 sm:mb-3">
-                <div className="flex items-center gap-1 sm:gap-2 rounded-md sm:rounded-xl px-1.5 sm:px-3 py-1 sm:py-2" style={{ border: '1px solid #E4E7EC', background: '#fff' }}>
-                    <i className="ri-search-line text-gray-400 text-[9px] sm:text-sm" />
+            <div className="p-3 sm:p-4 lg:p-5">
+            <div className="mb-3">
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 sm:rounded-xl sm:py-2">
+                    <i className="ri-search-line text-base text-slate-400 sm:text-sm" />
                     <input
                         value={searchId}
                         onChange={(e) => {
@@ -1778,7 +1882,7 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                             setCurrentPage(1)
                         }}
                         placeholder="Search by ID..."
-                        className="w-full bg-transparent text-[9px] sm:text-xs text-gray-700 placeholder:text-gray-400 outline-none"
+                        className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none sm:text-xs"
                     />
                 </div>
             </div>
@@ -1787,7 +1891,7 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                 <div
                     className="rounded-xl overflow-hidden animate-pulse"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1805,7 +1909,7 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                             padding: '10px 12px',
                         }}
                     >
-                        {Array.from({ length: activeKey === 'expense' || activeKey === 'advance' ? 8 : activeKey === 'travel' ? 9 : 4 }, (_, i) => (
+                        {Array.from({ length: activeKey === 'expense' ? 8 : activeKey === 'advance' ? 6 : activeKey === 'travel' ? 9 : 4 }, (_, i) => (
                             <div key={`sk-h-${i}`} style={{ height: 12, borderRadius: 6, background: '#E5E7EB' }} />
                         ))}
                     </div>
@@ -1827,7 +1931,7 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                     alignItems: 'center',
                                 }}
                             >
-                                {Array.from({ length: activeKey === 'expense' || activeKey === 'advance' ? 8 : activeKey === 'travel' ? 9 : 4 }, (__, c) => (
+                                {Array.from({ length: activeKey === 'expense' ? 8 : activeKey === 'advance' ? 6 : activeKey === 'travel' ? 9 : 4 }, (__, c) => (
                                     <div
                                         key={`sk-c-${r}-${c}`}
                                         style={{
@@ -1847,24 +1951,24 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                     {error}
                 </div>
             ) : showGlobalEmpty ? (
-                <div className="rounded-xl p-6 text-center" style={{ border: '1px dashed #E4E7EC' }}>
-                    <div className="mx-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-3 animate-pulse" style={{ background: '#F2F4F7', border: '1px solid #EAECF0' }}>
-                        <i className="ri-inbox-2-line text-xl sm:text-2xl" style={{ color: '#667085' }} />
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:h-14 sm:w-14">
+                        <i className="ri-inbox-2-line text-xl text-slate-400 sm:text-2xl" />
                     </div>
-                    <p className="text-sm font-semibold text-gray-800">No pending tasks</p>
-                    <p className="text-xs text-gray-500 mt-1">You don’t have any pending items assigned to you in Expense, Advance, or Booking.</p>
-                    <div className="text-[10px] text-gray-400 mt-2">You’re all caught up.</div>
+                    <p className="text-sm font-semibold text-slate-800">No pending tasks</p>
+                    <p className="mt-1 text-xs text-slate-500">You don’t have any pending items assigned to you in Expense, Advance, or Booking.</p>
+                    <div className="mt-2 text-[10px] text-slate-400">You’re all caught up.</div>
                 </div>
             ) : filteredRowsWithBreach.length === 0 ? (
-                <div className="rounded-xl p-6 text-center" style={{ border: '1px dashed #E4E7EC' }}>
-                    <p className="text-sm font-semibold text-gray-800">No matching pending records</p>
-                    <p className="text-xs text-gray-500 mt-1">Try a different ID or clear the search.</p>
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                    <p className="text-sm font-semibold text-slate-800">No matching pending records</p>
+                    <p className="mt-1 text-xs text-slate-500">Try a different ID or clear the search.</p>
                 </div>
             ) : activeKey === 'expense' ? (
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
-                                        style={{
-                        border: '1px solid #EEF2F7',
+                    style={{
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1882,17 +1986,17 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 ].map((h) => (
                                     <th
                                         key={h.label}
-                                        className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
-                                    style={{
+                                        className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
+                                        style={{
                                             textAlign: h.align,
-                                            background: '#FCFCFD',
-                                        position: 'sticky',
-                                        top: 0,
-                                        zIndex: 1,
-                                    }}
-                                >
+                                            background: 'rgba(248, 250, 252, 0.95)',
+                                            position: 'sticky',
+                                            top: 0,
+                                            zIndex: 1,
+                                        }}
+                                    >
                                         {h.label}
-                                </th>
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
@@ -1904,16 +2008,11 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                     <tr
                                         key={getRowId(entry.row, idx)}
                                         onClick={() => handleRowClick(entry.row)}
-                                        className="approver-table-row cursor-pointer"
-                                        style={{
-                                            '--row-accent': activeTab.color,
-                                            borderBottom: '1px solid #F2F4F7',
-                                        }}
+                                        className="records-data-row cursor-pointer"
                                     >
                                         <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                             <span
-                                                className="inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg max-w-[140px] truncate align-middle"
-                                                style={{ background: 'rgba(40,121,182,0.08)', color: '#2879b6' }}
+                                                className="record-id-badge inline-block max-w-[140px] truncate align-middle"
                                                 title={entry.expenseId}
                                             >
                                                 {entry.expenseId}
@@ -1929,24 +2028,19 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                         </td>
                                         <td className="px-3 py-2.5 align-middle">
                                             <div className="flex items-center gap-2 min-w-0">
-                                                <div
-                                                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                                                        style={{
-                                                        background: `linear-gradient(135deg, ${cfg.colorFrom}, ${cfg.colorTo})`,
-                                                    }}
-                                                >
+                                                <div className="record-type-icon">
                                                     <i className={`${cfg.icon} text-white text-sm`} />
                                                 </div>
-                                                <span className="text-[11px] sm:text-xs font-semibold truncate min-w-0" style={{ color: cfg.text }}>
+                                                <span className="record-type-label truncate min-w-0">
                                                     {entry.expenseType}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-3 py-2.5 align-middle text-right">
-                                            <span className="text-xs sm:text-sm font-bold text-gray-900 tabular-nums">{formatINR(entry.totalAmount)}</span>
+                                            <span className="record-amount">{formatINR(entry.totalAmount)}</span>
                                         </td>
                                         <td className="px-3 py-2.5 align-top max-w-[200px]">
-                                            <CurrentStepBadges text={entry.currentStep} size="sm" />
+                                            <CurrentStepBadges text={entry.currentStep} size="sm" accent={tableAccent} />
                                         </td>
                                         <td className="px-3 py-2.5 align-top">
                                             <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
@@ -1960,8 +2054,8 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
             ) : activeKey === 'advance' ? (
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
-                                                                style={{
-                        border: '1px solid #EEF2F7',
+                    style={{
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -1969,7 +2063,7 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
                                 {[
-                                    { label: 'Request ID', align: 'left' },
+                                    // { label: 'Request ID', align: 'left' },
                                     { label: 'Requested Date', align: 'left' },
                                     { label: 'Requestor', align: 'left' },
                                     { label: 'Link To Travel', align: 'left' },
@@ -1979,10 +2073,10 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 ].map((h) => (
                                     <th
                                         key={h.label}
-                                        className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
-                                                                                    style={{
+                                        className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
+                                        style={{
                                             textAlign: h.align,
-                                            background: '#FCFCFD',
+                                            background: 'rgba(248, 250, 252, 0.95)',
                                             position: 'sticky',
                                             top: 0,
                                             zIndex: 1,
@@ -1998,21 +2092,18 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="approver-table-row cursor-pointer"
-                                    style={{
-                                        '--row-accent': activeTab.color,
-                                        borderBottom: '1px solid #F2F4F7',
-                                    }}
+                                    className="records-data-row cursor-pointer"
                                 >
+                                    {/*
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                         <span
-                                            className="inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg max-w-[160px] truncate align-middle"
-                                            style={{ background: 'rgba(125,194,68,0.12)', color: '#3f6212' }}
+                                            className="record-id-badge inline-block max-w-[160px] truncate align-middle"
                                             title={entry.requestId}
                                         >
                                             {entry.requestId}
-                                                                                </span>
-                                                            </td>
+                                        </span>
+                                    </td>
+                                    */}
                                     <td className="px-3 py-2.5 align-middle text-[11px] sm:text-xs text-gray-500 whitespace-nowrap">
                                         {entry.requestedDateStr || '—'}
                                     </td>
@@ -2027,10 +2118,10 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                         </span>
                                     </td>
                                     <td className="px-3 py-2.5 align-middle text-right">
-                                        <span className="text-xs sm:text-sm font-bold text-gray-900 tabular-nums">{formatINR(entry.advanceAmount)}</span>
+                                        <span className="record-amount">{formatINR(entry.advanceAmount)}</span>
                                     </td>
                                     <td className="px-3 py-2.5 align-top max-w-[220px]">
-                                        <CurrentStepBadges text={entry.currentStep} size="sm" />
+                                        <CurrentStepBadges text={entry.currentStep} size="sm" accent={tableAccent} />
                                     </td>
                                     <td className="px-3 py-2.5 align-top">
                                         <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
@@ -2044,7 +2135,7 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -2052,22 +2143,23 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
                                 {[
-                                    { label: 'Request ID', align: 'left' },
+                                    // { label: 'Request ID', align: 'left' },
                                     { label: 'Requestor', align: 'left' },
                                     { label: 'Trip Type', align: 'left' },
                                     { label: 'Departure Date', align: 'left' },
                                     { label: 'Source (From)', align: 'left' },
+                                    { label: '', align: 'center', key: 'route-icon' },
                                     { label: 'Destination (To)', align: 'left' },
                                     { label: 'Booking Amount', align: 'right' },
                                     { label: 'Current step', align: 'left' },
                                     { label: 'SLA', align: 'left' },
                                 ].map((h) => (
                                     <th
-                                        key={h.label}
-                                        className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
+                                        key={h.key || h.label}
+                                        className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
                                         style={{
                                             textAlign: h.align,
-                                            background: '#FCFCFD',
+                                            background: 'rgba(248, 250, 252, 0.95)',
                                             position: 'sticky',
                                             top: 0,
                                             zIndex: 1,
@@ -2079,79 +2171,68 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedRows.map((entry, idx) => {
-                                const typeStyle = TRAVEL_TYPE_STYLE[entry.travelTypeKey] || {
-                                    bg: 'rgba(100,116,139,0.10)',
-                                    color: '#475569',
-                                }
-                                return (
+                            {paginatedRows.map((entry, idx) => (
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="approver-table-row cursor-pointer"
-                                    style={{
-                                        '--row-accent': activeTab.color,
-                                        borderBottom: '1px solid #F2F4F7',
-                                    }}
+                                    className="records-data-row cursor-pointer"
                                 >
+                                    {/*
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                         <span
-                                            className="inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg max-w-[160px] truncate align-middle"
-                                            style={{ background: 'rgba(238,106,49,0.12)', color: '#9a3412' }}
+                                            className="record-id-badge inline-block max-w-[160px] truncate align-middle"
                                             title={entry.requestId}
                                         >
                                             {entry.requestId}
                                         </span>
                                     </td>
+                                    */}
                                     <td className="px-3 py-2.5 align-middle max-w-[140px]">
                                         <span className="text-[11px] sm:text-xs text-gray-700 truncate block" title={entry.requestorText || ''}>
                                             {entry.requestorText || '—'}
                                         </span>
                                     </td>
                                     <td className="px-3 py-2.5 align-middle whitespace-nowrap">
-                                        <span
-                                            className="inline-block text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-lg"
-                                            style={{ background: typeStyle.bg, color: typeStyle.color }}
-                                        >
+                                        <span className="travel-type-badge">
                                             {entry.tripTypeLabel}
                                         </span>
                                     </td>
                                     <td className="px-3 py-2.5 align-middle text-[11px] sm:text-xs text-gray-500 whitespace-nowrap">
                                         {entry.departureDateStr || '—'}
                                     </td>
-                                    {entry.isMultiCity ? (
-                                        <td className="px-3 py-2.5 align-middle" colSpan={2}>
-                                            <span
-                                                className="text-[11px] sm:text-xs font-semibold text-gray-700"
-                                                title={entry.routeSummary || entry.fromText}
-                                            >
-                                                {entry.routeSummary || entry.fromText || '—'}
-                                            </span>
-                                        </td>
-                                    ) : (
-                                        <>
-                                            <td className="px-3 py-2.5 align-middle">
-                                                <span className="text-[11px] sm:text-xs font-semibold text-gray-700">{entry.fromText}</span>
-                                            </td>
-                                            <td className="px-3 py-2.5 align-middle">
-                                                <span className="text-[11px] sm:text-xs font-semibold text-gray-700">{entry.toTextValue}</span>
-                                            </td>
-                                        </>
-                                    )}
+                                    {(() => {
+                                        const route = splitTravelRoute(entry)
+                                        return (
+                                            <>
+                                                <td className="px-3 py-2.5 align-middle">
+                                                    <span className="text-[11px] sm:text-xs font-semibold text-gray-700" title={entry.routeSummary || route.from}>
+                                                        {route.from}
+                                                    </span>
+                                                </td>
+                                                <td className="px-1 py-2.5 align-middle text-center">
+                                                    <TripRouteIcon tripTypeKey={entry.travelTypeKey} label={entry.tripTypeLabel} />
+                                                </td>
+                                                <td className="px-3 py-2.5 align-middle">
+                                                    <span className="text-[11px] sm:text-xs font-semibold text-gray-700" title={entry.routeSummary || route.to}>
+                                                        {route.to}
+                                                    </span>
+                                                </td>
+                                            </>
+                                        )
+                                    })()}
                                     <td className="px-3 py-2.5 align-middle text-right whitespace-nowrap">
-                                        <span className="text-xs sm:text-sm font-bold text-gray-900 tabular-nums">
+                                        <span className="record-amount">
                                             {formatINR(entry.bookingAmount)}
                                         </span>
                                     </td>
                                     <td className="px-3 py-2.5 align-top max-w-[220px]">
-                                        <CurrentStepBadges text={entry.currentStep} size="sm" />
+                                        <CurrentStepBadges text={entry.currentStep} size="sm" accent={tableAccent} />
                                     </td>
                                     <td className="px-3 py-2.5 align-top">
                                         <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
                                     </td>
                                 </tr>
-                                )
-                            })}
+                            ))}
                         </tbody>
                     </table>
                 </div>
@@ -2159,7 +2240,7 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                 <div
                     className="rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
-                        border: '1px solid #EEF2F7',
+                        border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
                     }}
                 >
@@ -2169,14 +2250,10 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 {cols.map((c) => (
                                     <th
                                         key={c.Id}
-                                                                                            style={{
+                                        className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
+                                        style={{
                                             textAlign: 'left',
-                                            padding: '10px 12px',
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                            borderBottom: '1px solid #EAECF0',
-                                            background: '#FCFCFD',
-                                            whiteSpace: 'nowrap',
+                                            background: 'rgba(248, 250, 252, 0.95)',
                                             position: 'sticky',
                                             top: 0,
                                             zIndex: 1,
@@ -2192,38 +2269,32 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                                 <tr
                                     key={getRowId(row, idx)}
                                     onClick={() => handleRowClick(row)}
-                                    className="approver-table-row cursor-pointer"
-                                    style={{
-                                        '--row-accent': activeTab.color,
-                                        borderBottom: '1px solid #F2F4F7',
-                                    }}
+                                    className="records-data-row cursor-pointer"
                                 >
                                     {cols.map((c) => (
                                         <td
                                             key={c.Id}
+                                            className="px-3 py-2.5 align-middle"
                                             style={{
-                                                padding: '12px 12px',
                                                 fontSize: 12,
                                                 color: '#101828',
-                                                verticalAlign: 'middle',
                                                 maxWidth: 240,
-                                                transition: 'padding 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
                                             }}
                                         >
                                             <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {toText(row?.[c.Id]) || <span style={{ color: '#98A2B3' }}>—</span>}
-                                                                </div>
-                                                            </td>
+                                            </div>
+                                        </td>
                                     ))}
-                                                        </tr>
+                                </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
             )}
             {!showSkeleton && !error && filteredRows.length > 0 && (
-                <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <p className="text-[9px] sm:text-xs text-gray-500">
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <p className="text-[11px] sm:text-xs text-slate-500">
                         Showing {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, paginationLength)} of {paginationLength}
                     </p>
                     <div className="flex items-center gap-1">
@@ -2231,26 +2302,25 @@ function PendingApprovalsWidgetInner({ onPopupClosed, onSummaryChange } = {}) {
                             type="button"
                             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="w-4.5 h-4.5 sm:w-7 sm:h-7 rounded border text-[8px] sm:text-xs disabled:opacity-40"
-                            style={{ borderColor: '#E5E7EB' }}
+                            className="btn-press flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-xs text-slate-600 disabled:opacity-40"
                         >
                             <i className="ri-arrow-left-s-line" />
                         </button>
-                        <span className="text-[9px] sm:text-xs text-gray-600 px-2">
+                        <span className="px-2 text-[11px] sm:text-xs text-slate-600">
                             {currentPage}/{totalPages}
                         </span>
                         <button
                             type="button"
                             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="w-4.5 h-4.5 sm:w-7 sm:h-7 rounded border text-[8px] sm:text-xs disabled:opacity-40"
-                            style={{ borderColor: '#E5E7EB' }}
+                            className="btn-press flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-xs text-slate-600 disabled:opacity-40"
                         >
                             <i className="ri-arrow-right-s-line" />
                         </button>
                     </div>
                 </div>
             )}
+            </div>
         </div>
     )
 }

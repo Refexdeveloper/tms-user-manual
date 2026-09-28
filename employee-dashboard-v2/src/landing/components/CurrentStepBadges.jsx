@@ -14,27 +14,27 @@ function stepVisual(label) {
     const t = String(label || '').toLowerCase()
 
     if (t.includes('rejected')) {
-        return { bg: 'rgba(220, 38, 38, 0.1)', color: '#b91c1c', dot: '#ef4444' }
+        return { bg: 'rgba(229,57,53,.1)', color: '#c62828', dot: '#E53935', border: 'rgba(229,57,53,.24)' }
     }
     if (t.includes('withdrawn')) {
-        return { bg: 'rgba(71, 85, 105, 0.12)', color: '#475569', dot: '#64748b' }
+        return { bg: 'rgba(241,245,249,.9)', color: '#475569', dot: '#64748b', border: 'rgba(148,163,184,.3)' }
     }
     if (t.includes('exception')) {
-        return { bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309', dot: '#f59e0b' }
+        return { bg: 'rgba(124,58,237,.09)', color: '#6d28d9', dot: '#7c3aed', border: 'rgba(124,58,237,.22)' }
     }
     if (t.includes('manager') || /\bl[123]\b/.test(t) || (t.includes('approval') && !t.includes('rejected'))) {
-        return { bg: 'rgba(40, 121, 182, 0.12)', color: '#1e4d72', dot: '#2879b6' }
+        return { process: true }
     }
     if (t.includes('complete') || (t.includes('approved') && !t.includes('approval')) || t.includes('paid') || t.includes('booked')) {
-        return { bg: 'rgba(19, 155, 73, 0.1)', color: '#166534', dot: '#22c55e' }
+        return { bg: 'rgba(67,160,71,.1)', color: '#2e7d32', dot: '#43A047', border: 'rgba(67,160,71,.23)' }
     }
     if (t.includes('pending') || t.includes('submitted') || t.includes('review') || t.includes('progress') || t.includes('draft')) {
-        return { bg: 'rgba(245, 158, 33, 0.12)', color: '#a86a00', dot: '#F59E21' }
+        return { bg: 'rgba(251,140,0,.1)', color: '#b86200', dot: '#FB8C00', border: 'rgba(251,140,0,.23)' }
     }
-    return { bg: 'rgba(99, 102, 241, 0.1)', color: '#4338ca', dot: '#6366f1' }
+    return { process: true }
 }
 
-export default function CurrentStepBadges({ text, size = 'sm' }) {
+export default function CurrentStepBadges({ text, size = 'sm', accent = '#2879b6' }) {
     const parts = parseStepParts(text)
     const pad = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1'
     const textClass = size === 'sm' ? 'text-[11px]' : 'text-xs'
@@ -44,17 +44,23 @@ export default function CurrentStepBadges({ text, size = 'sm' }) {
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-1 gap-y-1">
+        <div className="workflow-step-list">
             {parts.map((label, i) => {
                 const v = stepVisual(label)
                 return (
                     <span
                         key={`${label}-${i}`}
-                        className={`inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap ${textClass} ${pad}`}
-                        style={{ background: v.bg, color: v.color }}
+                        className={`workflow-step-badge ${v.process ? 'is-process' : ''} ${textClass} ${pad}`}
+                        style={{
+                            '--step-bg': v.bg,
+                            '--step-color': v.color,
+                            '--step-dot': v.dot,
+                            '--step-border': v.border,
+                            '--step-accent': accent,
+                        }}
                         title={label}
                     >
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: v.dot }} />
+                        <span className="workflow-step-dot" />
                         {label}
                     </span>
                 )

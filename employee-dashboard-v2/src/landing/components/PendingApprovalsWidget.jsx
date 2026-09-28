@@ -33,6 +33,16 @@ const MY_ITEMS_STATUSES = [
     { key: 'Rejected', label: 'Rejected' },
 ]
 
+const ALL_MY_ITEMS_STATUS_KEYS = MY_ITEMS_STATUSES.map((st) => st.key)
+const SUBMITTED_STATUS_KEYS = ['Draft', 'InProgress', 'Withdrawn', 'Rejected']
+
+function statusesForInsightBucket(bucket) {
+    if (bucket === 'claimed') return ['Completed']
+    if (bucket === 'submitted') return SUBMITTED_STATUS_KEYS
+    if (bucket === 'total') return ALL_MY_ITEMS_STATUS_KEYS
+    return null
+}
+
 const HIDDEN_COLUMNS = ['Column_BliavHBah3', 'Column_RzqotquBQV', 'Column_eFd2LUqnSP']
 
 /**
@@ -70,25 +80,46 @@ const PREFERENCE_COLUMNS = {
         { Id: 'SLA_Deadline', Model: 'Travel_Management_A02' },
     ],
     advance: [
+        { Id: 'Advance_Request_ID', Model: 'Advance_Payment_Request_Process_A01' },
         { Id: 'Name', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Requested_Date', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Date_1', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Created_at_date', Model: 'Advance_Payment_Request_Process_A01' },
         { Id: '_created_by', Model: 'Advance_Payment_Request_Process_A01' },
-        { Id: 'Advance_Purpose', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'created_by_user_id', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'List_of_Travel_Requests_lookup', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'link_a_travel', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Advance_amount_value', Model: 'Advance_Payment_Request_Process_A01' },
         { Id: 'Final_amount', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Advance_Amount', Model: 'Advance_Payment_Request_Process_A01' },
         { Id: 'advance_amount_in_number', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'Advance_Purpose', Model: 'Advance_Payment_Request_Process_A01' },
         { Id: '_current_step', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: 'current_step', Model: 'Advance_Payment_Request_Process_A01' },
+        { Id: '_status', Model: 'Advance_Payment_Request_Process_A01' },
         { Id: 'SLA_Deadline', Model: 'Advance_Payment_Request_Process_A01' },
     ],
     expense: [
+        { Id: 'Expense_ID', Model: 'Expense_Management_A03' },
         { Id: 'Name', Model: 'Expense_Management_A03' },
+        { Id: 'Expense_Date', Model: 'Expense_Management_A03' },
         { Id: '_created_by', Model: 'Expense_Management_A03' },
+        { Id: 'Expense_Type', Model: 'Expense_Management_A03' },
+        { Id: 'Expense_Category', Model: 'Expense_Management_A03' },
+        { Id: 'Total_Claimable_Amount', Model: 'Expense_Management_A03' },
+        { Id: 'Total_Amount', Model: 'Expense_Management_A03' },
+        { Id: 'Expense_Amount', Model: 'Expense_Management_A03' },
+        { Id: 'Total_Reimbursable_Amount_single', Model: 'Expense_Management_A03' },
         { Id: '_current_step', Model: 'Expense_Management_A03' },
+        { Id: '_status', Model: 'Expense_Management_A03' },
+        { Id: 'current_step_status', Model: 'Expense_Management_A03' },
         { Id: 'SLA_Deadline', Model: 'Expense_Management_A03' },
     ],
 }
 
-async function postWorkflowStepPreference({ accountId, processId, viewId, columns }) {
+async function postWorkflowStepPreference({ accountId, processId, viewId, columns, viewType = 'WorkflowStep' }) {
     if (!accountId || !processId || !viewId || !columns?.length) return null
-    const prefUrl = `/common/2/${accountId}/preference/${processId}/WorkflowStep/${viewId}/?_application_id=${APP_ID}`
+    const prefUrl = `/common/2/${accountId}/preference/${processId}/${viewType}/${viewId}/?_application_id=${APP_ID}`
     try {
         return await kf.api(prefUrl, {
             method: 'POST',
@@ -97,7 +128,7 @@ async function postWorkflowStepPreference({ accountId, processId, viewId, column
                 AppId: processId,
                 ConfigJson: { Columns: columns, Filter: {}, Sort: [] },
                 ViewId: viewId,
-                ViewType: 'WorkflowStep',
+                ViewType: viewType,
             }),
         })
     } catch (e) {
@@ -116,7 +147,7 @@ const EXPENSE_TYPE_STYLE = {
     other: { icon: 'ri-file-list-3-line', colorFrom: '#64748b', colorTo: '#94a3b8', text: '#64748b' },
 }
 
-const ADVANCE_FIELD_IDS = {
+const ADVANCE_REPORT_FIELD_IDS = {
     requestId: 'Column_gmgjecOFBH',
     requestedDate: 'Column_RmtnLwNoFB',
     requestor: 'Column_9XVj5RhJI0',
@@ -124,6 +155,36 @@ const ADVANCE_FIELD_IDS = {
     advanceAmount: 'Column_rMCWa-_7NO',
     currentStep: 'Column_LTs78WRTDp',
     slaDeadline: 'Column_Wc-2EfDPkD',
+}
+
+const ADVANCE_PROCESS_FIELD_IDS = {
+    requestId: 'Advance_Request_ID',
+    requestedDate: 'Requested_Date',
+    requestor: 'created_by_user_id',
+    linkToTravel: 'List_of_Travel_Requests_lookup',
+    advanceAmount: 'Advance_amount_value',
+    currentStep: '_current_step',
+    slaDeadline: 'SLA_Deadline',
+}
+
+const EXPENSE_REPORT_FIELD_IDS = {
+    expenseId: 'Column_9Y8-uPPDVi',
+    requestDate: 'Column_gJidmn-kAv',
+    requestor: 'Column_rCBEwniBuE',
+    expenseType: 'Column_XcXTxxA4-C',
+    totalAmount: 'Column_Nvns1CPpfI',
+    currentStep: 'Column_bzLJNkKQZO',
+    slaDeadline: 'Column_KD_a7365Yi',
+}
+
+const EXPENSE_PROCESS_FIELD_IDS = {
+    expenseId: 'Expense_ID',
+    requestDate: 'Expense_Date',
+    requestor: '_created_by',
+    expenseType: 'Expense_Type',
+    totalAmount: 'Total_Claimable_Amount',
+    currentStep: '_current_step',
+    slaDeadline: 'SLA_Deadline',
 }
 
 const TRAVEL_FIELD_IDS = {
@@ -371,6 +432,99 @@ function travelRowNeedsDetail(row) {
     return !from || !to || (!amount && !trip)
 }
 
+async function fetchProcessReportMap(accountId, processId, reportId) {
+    const map = new Map()
+    if (!accountId || !processId || !reportId) return map
+    for (let page = 1; page <= MAX_PAGES; page++) {
+        const url = `/process-report/2/${accountId}/${processId}/${reportId}?_application_id=${APP_ID}&page_number=${page}&page_size=${PAGE_SIZE}`
+        const resp = await safeKfApi(url)
+        const rows = Array.isArray(resp?.Data) ? resp.Data : Array.isArray(resp?.data) ? resp.data : []
+        if (!rows.length) break
+        for (const r of rows) {
+            const id = String(r?._id || '').trim()
+            if (id) map.set(id, r)
+        }
+        if (rows.length < PAGE_SIZE) break
+    }
+    return map
+}
+
+function fetchAdvanceAllItemsReportMap(accountId) {
+    return fetchProcessReportMap(accountId, 'Advance_Payment_Request_Process_A01', 'ALL_ITEMS_WITH_TABLE_A00')
+}
+
+function fetchExpenseAllItemsReportMap(accountId) {
+    return fetchProcessReportMap(accountId, 'Expense_Management_A03', 'All_Items_MK_A00')
+}
+
+function fillEmptyKeysFromReport(listRow, reportRow, keys) {
+    if (!listRow || typeof listRow !== 'object') return listRow
+    const next = { ...listRow }
+    if (!reportRow || typeof reportRow !== 'object') return next
+    for (const key of keys) {
+        const reportVal = reportRow[key]
+        if (reportVal === undefined || reportVal === null || reportVal === '') continue
+        const cur = next[key]
+        if (cur === undefined || cur === null || cur === '') next[key] = reportVal
+    }
+    return next
+}
+
+function enrichAdvanceRowWithReport(listRow, reportRow) {
+    if (!reportRow || typeof reportRow !== 'object') return listRow
+    const next = fillEmptyKeysFromReport(listRow, reportRow, [
+        ADVANCE_REPORT_FIELD_IDS.requestId,
+        ADVANCE_REPORT_FIELD_IDS.requestedDate,
+        ADVANCE_REPORT_FIELD_IDS.requestor,
+        ADVANCE_REPORT_FIELD_IDS.linkToTravel,
+        ADVANCE_REPORT_FIELD_IDS.advanceAmount,
+        ADVANCE_REPORT_FIELD_IDS.currentStep,
+        ADVANCE_REPORT_FIELD_IDS.slaDeadline,
+        ADVANCE_PROCESS_FIELD_IDS.requestId,
+        ADVANCE_PROCESS_FIELD_IDS.requestedDate,
+        ADVANCE_PROCESS_FIELD_IDS.requestor,
+        ADVANCE_PROCESS_FIELD_IDS.linkToTravel,
+        ADVANCE_PROCESS_FIELD_IDS.advanceAmount,
+        ADVANCE_PROCESS_FIELD_IDS.currentStep,
+        ADVANCE_PROCESS_FIELD_IDS.slaDeadline,
+        'Advance_Amount',
+        'Final_amount',
+        'Name',
+        '_created_by',
+    ])
+    const linkKey = ADVANCE_REPORT_FIELD_IDS.linkToTravel
+    if (reportRow[linkKey] != null && reportRow[linkKey] !== '') next[linkKey] = reportRow[linkKey]
+    return next
+}
+
+function enrichExpenseRowWithReport(listRow, reportRow) {
+    if (!reportRow || typeof reportRow !== 'object') return listRow
+    const next = fillEmptyKeysFromReport(listRow, reportRow, [
+        EXPENSE_REPORT_FIELD_IDS.expenseId,
+        EXPENSE_REPORT_FIELD_IDS.requestDate,
+        EXPENSE_REPORT_FIELD_IDS.requestor,
+        EXPENSE_REPORT_FIELD_IDS.expenseType,
+        EXPENSE_REPORT_FIELD_IDS.totalAmount,
+        EXPENSE_REPORT_FIELD_IDS.currentStep,
+        EXPENSE_REPORT_FIELD_IDS.slaDeadline,
+        EXPENSE_PROCESS_FIELD_IDS.expenseId,
+        EXPENSE_PROCESS_FIELD_IDS.requestDate,
+        EXPENSE_PROCESS_FIELD_IDS.requestor,
+        EXPENSE_PROCESS_FIELD_IDS.expenseType,
+        EXPENSE_PROCESS_FIELD_IDS.totalAmount,
+        EXPENSE_PROCESS_FIELD_IDS.currentStep,
+        EXPENSE_PROCESS_FIELD_IDS.slaDeadline,
+        'Expense_Category',
+        'Total_Amount',
+        'Name',
+        '_created_by',
+    ])
+    for (const key of [EXPENSE_REPORT_FIELD_IDS.expenseType, EXPENSE_REPORT_FIELD_IDS.slaDeadline]) {
+        if (reportRow[key] != null && reportRow[key] !== '') next[key] = reportRow[key]
+    }
+    return next
+}
+
 function normalizeTravelTypeKey(raw) {
     const s = String(raw || '')
         .trim()
@@ -389,10 +543,38 @@ function travelTypeLabel(key) {
     return '—'
 }
 
-const TRAVEL_TYPE_STYLE = {
-    oneWay: { bg: 'rgba(40,121,182,0.10)', color: '#1e4d72' },
-    roundTrip: { bg: 'rgba(125,194,68,0.14)', color: '#3f6212' },
-    multiCity: { bg: 'rgba(238,106,49,0.12)', color: '#9a3412' },
+function tripRouteIconName(key) {
+    if (key === 'roundTrip') return 'ri-arrow-left-right-line'
+    if (key === 'multiCity') return 'ri-route-line'
+    return 'ri-arrow-right-line'
+}
+
+function TripRouteIcon({ tripTypeKey, label }) {
+    const kind = tripTypeKey || 'oneWay'
+    return (
+        <span
+            className={`trip-route-icon is-${kind}`}
+            title={label || travelTypeLabel(tripTypeKey)}
+            aria-hidden="true"
+        >
+            <i className={tripRouteIconName(tripTypeKey)} />
+        </span>
+    )
+}
+
+function splitTravelRoute(entry) {
+    if (entry?.isMultiCity) {
+        const raw = String(entry.routeSummary || entry.fromText || '')
+        const parts = raw
+            .split(/\s*(?:→|->|—|-)\s*/)
+            .map((part) => part.trim())
+            .filter(Boolean)
+        if (parts.length >= 2) {
+            return { from: parts[0], to: parts[parts.length - 1] }
+        }
+        return { from: raw || '—', to: '—' }
+    }
+    return { from: entry?.fromText || '—', to: entry?.toTextValue || '—' }
 }
 
 function toNumber(value) {
@@ -537,15 +719,7 @@ function formatDepartureDateDisplay(value) {
 }
 
 const EMPTY_EXPENSE_FIELD_IDS = {
-    expenseId: 'Column_9Y8-uPPDVi',
-    requestDate: 'Column_gJidmn-kAv',
-    requestor: 'Column_rCBEwniBuE',
-    // Travel Expense type (provided)
-    expenseType: 'Column_XcXTxxA4-C',
-    totalAmount: 'Column_Nvns1CPpfI',
-    // Travel Expense current step (provided)
-    currentStep: 'Column_bzLJNkKQZO',
-    slaDeadline: 'Column_KD_a7365Yi',
+    ...EXPENSE_REPORT_FIELD_IDS,
 }
 
 // Travel Expense status (provided)
@@ -672,11 +846,16 @@ function formatINR(amount) {
 function buildExpenseRowView(row, ids) {
     const expenseId =
         (ids.expenseId ? toText(row[ids.expenseId]).trim() : '') ||
+        toText(row?.[EXPENSE_PROCESS_FIELD_IDS.expenseId]).trim() ||
         toText(row?._name || row?.Name) ||
         toText(row?._id).slice(-8) ||
         '—'
 
-    const requestRaw = ids.requestDate ? row?.[ids.requestDate] : null
+    const requestRaw =
+        (ids.requestDate ? row?.[ids.requestDate] : null) ??
+        row?.[EXPENSE_PROCESS_FIELD_IDS.requestDate] ??
+        row?.[EXPENSE_REPORT_FIELD_IDS.requestDate] ??
+        null
     const requestDateStr =
         (requestRaw !== undefined && requestRaw !== null && requestRaw !== '' ? toDateText(extractDateTimeRaw(requestRaw) ?? requestRaw) : '') ||
         toDateText(row?._created_at)
@@ -684,23 +863,42 @@ function buildExpenseRowView(row, ids) {
     const windowStartAtMs =
         dateRawToMs(requestRaw) ?? dateRawToMs(row?._created_at) ?? dateRawToMs(row?._modified_at) ?? null
 
-    const expenseTypeRaw = ids.expenseType ? toText(row[ids.expenseType]).trim() : ''
+    const expenseTypeRaw = toText(
+        (ids.expenseType ? row[ids.expenseType] : null) ??
+            row?.[EXPENSE_REPORT_FIELD_IDS.expenseType] ??
+            row?.[EXPENSE_PROCESS_FIELD_IDS.expenseType] ??
+            row?.Expense_Category,
+    ).trim()
     const expenseType = expenseTypeRaw || '—'
 
-    const requestorText = ids.requestor ? toText(row?.[ids.requestor]).trim() : ''
+    const requestorText = toText(
+        (ids.requestor ? row?.[ids.requestor] : null) ??
+            row?.[EXPENSE_PROCESS_FIELD_IDS.requestor] ??
+            row?.[EXPENSE_REPORT_FIELD_IDS.requestor],
+    ).trim()
 
     let totalAmount = 0
     if (ids.totalAmount && row[ids.totalAmount] !== undefined && row[ids.totalAmount] !== null && row[ids.totalAmount] !== '') {
         totalAmount = toNumber(row[ids.totalAmount])
     } else {
         totalAmount = toNumber(
-            row?.Total_Claimable_Amount ?? row?.['Column_UyJCJpXn5Y'] ?? row?.Total_Amount ?? 0,
+            row?.[EXPENSE_REPORT_FIELD_IDS.totalAmount] ??
+                row?.[EXPENSE_PROCESS_FIELD_IDS.totalAmount] ??
+                row?.Total_Claimable_Amount ??
+                row?.['Column_UyJCJpXn5Y'] ??
+                row?.Total_Amount ??
+                0,
         )
     }
 
-    const currentStep = extractCurrentStepText(row, ids.currentStep)
+    const currentStep = extractCurrentStepText(row, ids.currentStep || EXPENSE_PROCESS_FIELD_IDS.currentStep)
 
-    const slaRaw = extractSlaDeadlineRaw(row, ids.slaDeadline, ['Column_KD_a7365Yi', 'SLA_Deadline'])
+    const slaRaw = extractSlaDeadlineRaw(row, ids.slaDeadline, [
+        EXPENSE_REPORT_FIELD_IDS.slaDeadline,
+        EXPENSE_PROCESS_FIELD_IDS.slaDeadline,
+        'Column_KD_a7365Yi',
+        'SLA_Deadline',
+    ])
     const deadlineAtMs = dateRawToMs(slaRaw)
     const deadlineText = slaRaw != null && slaRaw !== '' ? formatDeadlineCell(slaRaw) : ''
 
@@ -754,29 +952,48 @@ function formatLinkToTravel(value) {
 
 function buildAdvanceRowView(row) {
     const requestId =
-        toText(row?.[ADVANCE_FIELD_IDS.requestId]).trim() ||
+        toText(row?.[ADVANCE_REPORT_FIELD_IDS.requestId]).trim() ||
+        toText(row?.[ADVANCE_PROCESS_FIELD_IDS.requestId]).trim() ||
         toText(row?.Advance_Request_ID || row?._name || row?.Name).trim() ||
         '—'
-    const requestedRaw = row?.[ADVANCE_FIELD_IDS.requestedDate] ?? row?.Requested_Date ?? row?.requested_date
+    const requestedRaw =
+        row?.[ADVANCE_REPORT_FIELD_IDS.requestedDate] ??
+        row?.[ADVANCE_PROCESS_FIELD_IDS.requestedDate] ??
+        row?.Date_1 ??
+        row?.Created_at_date ??
+        row?.requested_date
     const requestedDateStr =
         (requestedRaw !== undefined && requestedRaw !== null && requestedRaw !== ''
             ? toDateText(extractDateTimeRaw(requestedRaw) ?? requestedRaw)
             : '') || toDateText(row?._created_at)
     const linkToTravelText = formatLinkToTravel(
-        row?.[ADVANCE_FIELD_IDS.linkToTravel] ?? row?.List_of_Travel_Requests_lookup,
+        row?.[ADVANCE_REPORT_FIELD_IDS.linkToTravel] ??
+            row?.[ADVANCE_PROCESS_FIELD_IDS.linkToTravel] ??
+            row?.link_a_travel,
     )
     const requestorText = toText(
-        row?.[ADVANCE_FIELD_IDS.requestor] ?? row?.created_by_user_id ?? row?._created_by,
+        row?.[ADVANCE_REPORT_FIELD_IDS.requestor] ??
+            row?.[ADVANCE_PROCESS_FIELD_IDS.requestor] ??
+            row?._created_by,
     ).trim()
     const advanceAmount = toNumber(
-        row?.[ADVANCE_FIELD_IDS.advanceAmount] ??
-            row?.Advance_amount_value ??
+        row?.[ADVANCE_REPORT_FIELD_IDS.advanceAmount] ??
+            row?.[ADVANCE_PROCESS_FIELD_IDS.advanceAmount] ??
+            row?.Final_amount ??
             row?.['Column_t1eY-VJcss'] ??
-            row?.Advance_Amount,
+            row?.Advance_Amount ??
+            row?.advance_amount_in_number,
     )
-    const currentStep = extractCurrentStepText(row, ADVANCE_FIELD_IDS.currentStep)
+    const currentStep = extractCurrentStepText(
+        row,
+        ADVANCE_REPORT_FIELD_IDS.currentStep || ADVANCE_PROCESS_FIELD_IDS.currentStep,
+    )
 
-    const slaRaw = extractSlaDeadlineRaw(row, ADVANCE_FIELD_IDS.slaDeadline)
+    const slaRaw = extractSlaDeadlineRaw(row, ADVANCE_REPORT_FIELD_IDS.slaDeadline, [
+        ADVANCE_PROCESS_FIELD_IDS.slaDeadline,
+        'SLA_Deadline',
+        'Column_Wc-2EfDPkD',
+    ])
     const deadlineAtMs = dateRawToMs(slaRaw)
     const deadlineText = slaRaw != null && slaRaw !== '' ? formatDeadlineCell(slaRaw) : ''
     const windowStartAtMs = dateRawToMs(requestedRaw) ?? dateRawToMs(row?._created_at) ?? dateRawToMs(row?._modified_at) ?? null
@@ -954,7 +1171,11 @@ function isPendingStatus(text) {
     return s.includes('pending') || s.includes('progress') || s.includes('review') || s.includes('approval') || s.includes('desk')
 }
 
-export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
+export default function PendingApprovalsWidget({
+    onPopupClosed,
+    insightFilter = null,
+    onClearInsight,
+} = {}) {
     const accountId = useMemo(() => kf?.account?._id, [])
     const [scopeKey, setScopeKey] = useState('myItems')
     const [myItemsStatus, setMyItemsStatus] = useState('Draft')
@@ -974,6 +1195,9 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     const [error, setError] = useState('')
     const [searchId, setSearchId] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
+    const [selectedDraftIds, setSelectedDraftIds] = useState(() => new Set())
+    const [deletingDrafts, setDeletingDrafts] = useState(false)
+    const [insightStatuses, setInsightStatuses] = useState(null)
     const pageSize = 8
     const fetchSeqRef = useRef(0)
 
@@ -1031,7 +1255,9 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                 const results = await Promise.all(
                     TABS.map(async (t) => {
                         const sc = await fetchMyItemsStatusCounts(t)
-                        const n = Number(sc?.[myItemsStatus] || 0)
+                        const n = Array.isArray(insightStatuses) && insightStatuses.length
+                            ? insightStatuses.reduce((sum, key) => sum + Number(sc?.[key] || 0), 0)
+                            : Number(sc?.[myItemsStatus] || 0)
                         return { key: t.key, count: n, statusCounts: sc }
                     }),
                 )
@@ -1168,22 +1394,44 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
             let allCols = []
 
             if (scopeKey === 'myItems') {
-                const status = myItemsStatus || 'Draft'
+                const statuses = (
+                    Array.isArray(insightStatuses) && insightStatuses.length
+                        ? insightStatuses
+                        : [myItemsStatus || 'Draft']
+                ).filter(Boolean)
                 const prefCols = PREFERENCE_COLUMNS?.[tab.key] || []
-                if (prefCols.length) {
-                    await postWorkflowStepPreference({
-                        accountId,
-                        processId: tab.processId,
-                        viewId: status,
-                        columns: prefCols,
-                    })
+                for (const status of statuses) {
+                    if (prefCols.length) {
+                        await postWorkflowStepPreference({
+                            accountId,
+                            processId: tab.processId,
+                            viewId: status,
+                            columns: prefCols,
+                        })
+                    }
                 }
-                const result = await paginateProcessApi(
-                    (page) =>
-                        `/process/2/${accountId}/${tab.processId}/myitems/${status}?page_number=${page}&page_size=${PAGE_SIZE}&apply_preference=true&skip_aggregation=true&_application_id=${APP_ID}`,
+                const chunks = await Promise.all(
+                    statuses.map((status) =>
+                        paginateProcessApi(
+                            (page) =>
+                                `/process/2/${accountId}/${tab.processId}/myitems/${status}?page_number=${page}&page_size=${PAGE_SIZE}&apply_preference=true&skip_aggregation=true&_application_id=${APP_ID}`,
+                        ),
+                    ),
                 )
-                allRows = result.allRows
-                allCols = result.allCols
+                const seen = new Set()
+                allRows = []
+                allCols = []
+                for (const chunk of chunks) {
+                    if (!allCols.length) allCols = chunk.allCols
+                    for (const row of chunk.allRows || []) {
+                        const id = String(row?._id || '').trim()
+                        if (id) {
+                            if (seen.has(id)) continue
+                            seen.add(id)
+                        }
+                        allRows.push(row)
+                    }
+                }
             } else if (scopeKey === 'myTasks') {
                 let stepId = activeStepId
                 if (!stepId) {
@@ -1231,6 +1479,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                             processId: tab.processId,
                             viewId: stepId,
                             columns: prefCols,
+                            viewType: 'Participated',
                         })
                     }
                     const result = await paginateProcessApi(
@@ -1284,10 +1533,23 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     if (seq !== fetchSeqRef.current) return
                     finalRows = hydrated
                 }
+            } else if (tab.key === 'advance' && allRows.length) {
+                const reportMap = await fetchAdvanceAllItemsReportMap(accountId)
+                if (seq !== fetchSeqRef.current) return
+                finalRows = allRows.map((row) => {
+                    const id = String(row?._id || '').trim()
+                    return enrichAdvanceRowWithReport(row, id ? reportMap.get(id) : null)
+                })
+            } else if (tab.key === 'expense' && allRows.length) {
+                const reportMap = await fetchExpenseAllItemsReportMap(accountId)
+                if (seq !== fetchSeqRef.current) return
+                finalRows = allRows.map((row) => {
+                    const id = String(row?._id || '').trim()
+                    return enrichExpenseRowWithReport(row, id ? reportMap.get(id) : null)
+                })
             }
 
             setRows(finalRows)
-            setCounts((prev) => ({ ...prev, [tab.key]: finalRows.length }))
         } catch (e) {
             if (seq !== fetchSeqRef.current) return
             setError(e?.message || `Unable to fetch ${tab.label} items.`)
@@ -1313,15 +1575,57 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
         setSearchId('')
         fetchProcessCounts()
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accountId, scopeKey, myItemsStatus])
+    }, [accountId, scopeKey, myItemsStatus, insightStatuses])
+
+    useEffect(() => {
+        if (!insightFilter?.token || !insightFilter?.processKey || !insightFilter?.bucket) {
+            setInsightStatuses((prev) => (prev ? null : prev))
+            return
+        }
+        const nextStatuses = statusesForInsightBucket(insightFilter.bucket)
+        const cardRows = Array.isArray(insightFilter.rows) ? insightFilter.rows : null
+        setScopeKey('myItems')
+        setActiveKey(insightFilter.processKey)
+        setMyItemsStatus(insightFilter.bucket === 'claimed' ? 'Completed' : 'InProgress')
+        setInsightStatuses(nextStatuses)
+        setCurrentPage(1)
+        setSearchId('')
+        setSelectedDraftIds(new Set())
+        if (cardRows) {
+            setRows(cardRows)
+            setError('')
+            setLoading(false)
+            setCounts((prev) => ({ ...prev, [insightFilter.processKey]: cardRows.length }))
+        }
+    }, [insightFilter?.token, insightFilter?.processKey, insightFilter?.bucket, insightFilter?.rows])
+
+    const clearCardInsight = () => {
+        setInsightStatuses(null)
+        onClearInsight?.()
+    }
 
     useEffect(() => {
         if (!accountId || !countsReady) return
+        const cardRows = Array.isArray(insightFilter?.rows) ? insightFilter.rows : null
+        if (
+            cardRows &&
+            scopeKey === 'myItems' &&
+            insightFilter?.processKey &&
+            activeTab.key === insightFilter.processKey
+        ) {
+            setCurrentPage(1)
+            setSearchId('')
+            setRows(cardRows)
+            setError('')
+            setLoading(false)
+            setCounts((prev) => ({ ...prev, [activeTab.key]: cardRows.length }))
+            return
+        }
         setCurrentPage(1)
         setSearchId('')
         fetchList(activeTab)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accountId, countsReady, activeTab.key, scopeKey, myItemsStatus, activeStepId])
+    }, [accountId, countsReady, activeTab.key, scopeKey, myItemsStatus, activeStepId, insightStatuses, insightFilter?.token])
 
     useEffect(() => {
         if (!accountId || scopeKey === 'myItems') return
@@ -1425,6 +1729,17 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
         return built
     }, [filteredRows, activeTab.key])
 
+    const activeStatusCounts = useMemo(() => {
+        const sc = statusCounts?.[activeKey] || {}
+        return {
+            Draft: Number(sc.Draft || 0),
+            InProgress: Number(sc.InProgress || 0),
+            Completed: Number(sc.Completed || 0),
+            Withdrawn: Number(sc.Withdrawn || 0),
+            Rejected: Number(sc.Rejected || 0),
+        }
+    }, [statusCounts, activeKey])
+
     const paginationLength =
         activeTab.key === 'expense' && expenseViewRows != null
             ? expenseViewRows.length
@@ -1451,13 +1766,91 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     useEffect(() => {
         setCurrentPage(1)
         setSearchId('')
+        setSelectedDraftIds(new Set())
         if (scopeKey !== 'myItems') setActiveStepId('')
         setLoading(true)
-    }, [activeKey, scopeKey])
+    }, [activeKey, scopeKey, myItemsStatus])
 
     useEffect(() => {
         if (currentPage > totalPages) setCurrentPage(totalPages)
     }, [currentPage, totalPages])
+
+    const showDraftBulkSelect = scopeKey === 'myItems' && myItemsStatus === 'Draft'
+    const resolveDraftDeleteId = (row) =>
+        String(row?._id ?? row?.InstanceID ?? row?.InstanceId ?? row?.id ?? '').trim()
+    const rowFromView = (entry) => entry?.row || entry
+    const draftPageRowIds = showDraftBulkSelect
+        ? paginatedRows.map((entry) => resolveDraftDeleteId(rowFromView(entry))).filter(Boolean)
+        : []
+    const allDraftRowsSelected =
+        draftPageRowIds.length > 0 && draftPageRowIds.every((id) => selectedDraftIds.has(id))
+
+    const toggleDraftSelection = (id) => {
+        if (!id) return
+        setSelectedDraftIds((previous) => {
+            const next = new Set(previous)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const toggleAllDraftsOnPage = (checked) => {
+        setSelectedDraftIds((previous) => {
+            const next = new Set(previous)
+            draftPageRowIds.forEach((id) => {
+                if (checked) next.add(id)
+                else next.delete(id)
+            })
+            return next
+        })
+    }
+
+    const handleDeleteSelectedDrafts = async () => {
+        const ids = Array.from(selectedDraftIds).filter(Boolean)
+        if (!showDraftBulkSelect || !ids.length || deletingDrafts || !accountId) return
+
+        const confirmed = window.confirm(
+            `Delete ${ids.length} selected draft record(s)? This cannot be undone.`,
+        )
+        if (!confirmed) return
+
+        setDeletingDrafts(true)
+        try {
+            const results = await Promise.allSettled(
+                ids.map((id) =>
+                    kf.api(
+                        `/process/2/${accountId}/admin/${activeTab.processId}/${encodeURIComponent(id)}`,
+                        { method: 'DELETE', headers: { Accept: 'application/json' } },
+                    ),
+                ),
+            )
+            const successIds = results
+                .map((result, index) => (result.status === 'fulfilled' ? ids[index] : ''))
+                .filter(Boolean)
+            const failed = ids.length - successIds.length
+
+            if (successIds.length) {
+                setSelectedDraftIds((previous) => {
+                    const next = new Set(previous)
+                    successIds.forEach((id) => next.delete(id))
+                    return next
+                })
+                await Promise.all([fetchProcessCounts(), fetchList(activeTab)])
+            }
+
+            if (failed) {
+                window.alert(`${successIds.length} draft(s) deleted, ${failed} failed.`)
+            } else if (successIds.length) {
+                window.alert(`${successIds.length} draft(s) deleted successfully.`)
+            }
+        } catch (deleteError) {
+            console.error('Draft delete failed', deleteError)
+            window.alert('Delete failed. Please try again or contact support.')
+        } finally {
+            setDeletingDrafts(false)
+        }
+    }
 
     const handleRowClick = async (row) => {
         const { instanceId, activityId } = resolveIdsFromListPayload(row)
@@ -1515,7 +1908,10 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
     }
 
     return (
-        <div className="records-panel overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl">
+        <div
+            className={`records-panel overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl${insightFilter?.pulse ? ' is-insight-pulse' : ''}${insightStatuses?.length ? ' is-insight-filtered' : ''}`}
+            style={{ '--records-accent': activeTab.color }}
+        >
             <div className="records-header flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white to-[#EEF4FF] px-3 py-3 sm:px-5 sm:py-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
@@ -1525,9 +1921,20 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                         <div className="min-w-0">
                             <h3 className="text-[15px] font-semibold text-slate-900 sm:text-base">My Records</h3>
                             <p className="text-[11px] text-slate-500 sm:text-xs">
-                                Drafts, items, tasks & participated · all processes
+                                {insightFilter?.label
+                                    ? `Showing ${insightFilter.label} · ${activeTab.label} (${Array.isArray(insightFilter.rows) ? insightFilter.rows.length : rows.length})`
+                                    : 'Drafts, items, tasks & participated · all processes'}
                             </p>
                         </div>
+                        {insightFilter?.label ? (
+                            <button
+                                type="button"
+                                className="records-insight-clear"
+                                onClick={clearCardInsight}
+                            >
+                                Clear filter
+                            </button>
+                        ) : null}
                     </div>
                     <div className="w-full overflow-x-auto hide-scrollbar sm:w-auto">
                         <div className="inline-flex w-full min-w-max items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-sm sm:w-auto sm:rounded-xl">
@@ -1537,18 +1944,12 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                     <button
                                         key={scope.key}
                                         type="button"
-                                        onClick={() => setScopeKey(scope.key)}
-                                        className="btn-press flex-1 cursor-pointer whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-semibold transition-all sm:flex-none sm:rounded-lg sm:px-3 sm:py-1.5"
-                                        style={
-                                            isActive
-                                                ? {
-                                                      background: '#1E88E5',
-                                                      color: '#fff',
-                                                      boxShadow: '0 4px 12px -2px rgba(30,136,229,0.4)',
-                                                      border: '1px solid #1565C0',
-                                                  }
-                                                : { color: '#64748b', background: 'transparent' }
-                                        }
+                                        onClick={() => {
+                                            if (insightStatuses?.length) clearCardInsight()
+                                            setScopeKey(scope.key)
+                                        }}
+                                        className={`records-scope-tab btn-press flex-1 cursor-pointer whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-semibold transition-all sm:flex-none sm:rounded-lg sm:px-3 sm:py-1.5${isActive ? ' is-active' : ''}`}
+                                        style={isActive ? undefined : { color: '#64748b', background: 'transparent' }}
                                     >
                                         {scope.label}
                                     </button>
@@ -1566,7 +1967,12 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                 <button
                                     key={tab.key}
                                     type="button"
-                                    onClick={() => setActiveKey(tab.key)}
+                                    onClick={() => {
+                                        if (insightStatuses?.length && tab.key !== insightFilter?.processKey) {
+                                            clearCardInsight()
+                                        }
+                                        setActiveKey(tab.key)
+                                    }}
                                     className={`records-process-tab btn-press ${isActive ? 'is-active' : ''}`}
                                     style={{ '--tab-color': tab.color, '--tab-glow': tab.glow }}
                                 >
@@ -1588,27 +1994,19 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     <div className="w-full overflow-x-auto hide-scrollbar">
                         <div className="inline-flex min-w-max items-center gap-1.5">
                             {MY_ITEMS_STATUSES.map((st) => {
-                                const isActive = myItemsStatus === st.key
-                                const n = statusCounts?.[activeKey]?.[st.key]
+                                const isActive = insightStatuses?.length
+                                    ? insightStatuses.includes(st.key)
+                                    : myItemsStatus === st.key
+                                const n = activeStatusCounts[st.key]
                                 return (
                                     <button
                                         key={st.key}
                                         type="button"
-                                        onClick={() => setMyItemsStatus(st.key)}
-                                        className="btn-press rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all sm:text-xs"
-                                        style={
-                                            isActive
-                                                ? {
-                                                      background: 'rgba(40,121,182,0.12)',
-                                                      color: '#2879b6',
-                                                      boxShadow: 'inset 0 0 0 1px rgba(40,121,182,0.35)',
-                                                  }
-                                                : {
-                                                      background: '#f8fafc',
-                                                      color: '#64748b',
-                                                      boxShadow: 'inset 0 0 0 1px #e2e8f0',
-                                                  }
-                                        }
+                                        onClick={() => {
+                                            if (insightStatuses?.length) clearCardInsight()
+                                            setMyItemsStatus(st.key)
+                                        }}
+                                        className={`records-status-chip btn-press rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all sm:text-xs${isActive ? ' is-active' : ''}`}
                                     >
                                         {st.label}
                                         {n != null ? <span className="ml-1 opacity-70">{n}</span> : null}
@@ -1632,20 +2030,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                         key={id || label}
                                         type="button"
                                         onClick={() => setActiveStepId(id)}
-                                        className="btn-press rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all sm:text-xs"
-                                        style={
-                                            isActive
-                                                ? {
-                                                      background: 'rgba(40,121,182,0.12)',
-                                                      color: '#2879b6',
-                                                      boxShadow: 'inset 0 0 0 1px rgba(40,121,182,0.35)',
-                                                  }
-                                                : {
-                                                      background: '#f8fafc',
-                                                      color: '#64748b',
-                                                      boxShadow: 'inset 0 0 0 1px #e2e8f0',
-                                                  }
-                                        }
+                                        className={`records-status-chip btn-press rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all sm:text-xs${isActive ? ' is-active' : ''}`}
                                     >
                                         {label}
                                         <span className="ml-1 opacity-70">{n}</span>
@@ -1657,6 +2042,44 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                 ) : null}
             </div>
             <div className="p-3 sm:p-4 lg:p-5">
+            {showDraftBulkSelect && selectedDraftIds.size > 0 ? (
+                <div className="draft-bulk-toolbar mb-3" role="status">
+                    <div className="draft-selection-count">
+                        <span className="draft-selection-icon" aria-hidden="true">
+                            <i className="ri-checkbox-multiple-line" />
+                        </span>
+                        <span>
+                            <strong>{selectedDraftIds.size}</strong> selected
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            className="draft-clear-button"
+                            onClick={() => setSelectedDraftIds(new Set())}
+                            disabled={deletingDrafts}
+                        >
+                            Clear
+                        </button>
+                        <button
+                            type="button"
+                            className="draft-delete-button"
+                            onClick={handleDeleteSelectedDrafts}
+                            disabled={deletingDrafts}
+                        >
+                            <i
+                                className={
+                                    deletingDrafts
+                                        ? 'ri-loader-4-line draft-delete-spinner'
+                                        : 'ri-delete-bin-6-line'
+                                }
+                                aria-hidden="true"
+                            />
+                            {deletingDrafts ? 'Deleting…' : `Delete (${selectedDraftIds.size})`}
+                        </button>
+                    </div>
+                </div>
+            ) : null}
             <div className="mb-3">
                 <div className="flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 sm:rounded-xl sm:py-2">
                     <i className="ri-search-line text-base text-slate-400 sm:text-sm" />
@@ -1694,7 +2117,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                             padding: '10px 12px',
                         }}
                     >
-                        {Array.from({ length: activeKey === 'expense' || activeKey === 'advance' ? 8 : activeKey === 'travel' ? 9 : 4 }, (_, i) => (
+                        {Array.from({ length: activeKey === 'expense' ? 8 : activeKey === 'advance' ? 6 : activeKey === 'travel' ? 9 : 4 }, (_, i) => (
                             <div key={`sk-h-${i}`} style={{ height: 12, borderRadius: 6, background: '#E5E7EB' }} />
                         ))}
                     </div>
@@ -1716,7 +2139,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                     alignItems: 'center',
                                 }}
                             >
-                                {Array.from({ length: activeKey === 'expense' || activeKey === 'advance' ? 8 : activeKey === 'travel' ? 9 : 4 }, (__, c) => (
+                                {Array.from({ length: activeKey === 'expense' ? 8 : activeKey === 'advance' ? 6 : activeKey === 'travel' ? 9 : 4 }, (__, c) => (
                                     <div
                                         key={`sk-c-${r}-${c}`}
                                         style={{
@@ -1762,6 +2185,17 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 1020 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
+                                {showDraftBulkSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all drafts on this page"
+                                            checked={allDraftRowsSelected}
+                                            onChange={(event) => toggleAllDraftsOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {[
                                     { label: 'Expense ID', align: 'left' },
                                     { label: 'Request Date', align: 'left' },
@@ -1791,33 +2225,30 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                             {paginatedRows.map((entry, idx) => {
                                 const tkey = normalizeExpenseTypeKey(entry.expenseType)
                                 const cfg = EXPENSE_TYPE_STYLE[tkey] || EXPENSE_TYPE_STYLE.other
+                                const draftId = resolveDraftDeleteId(entry.row)
+                                const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
                                 return (
                                     <tr
                                         key={getRowId(entry.row, idx)}
                                         onClick={() => handleRowClick(entry.row)}
-                                        className="cursor-pointer transition-all"
-                                        style={{
-                                            borderBottom: '1px solid #F2F4F7',
-                                            transformOrigin: 'center',
-                                            transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = '#f8faff'
-                                            e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                            e.currentTarget.style.transform = 'translateX(2px)'
-                                            e.currentTarget.style.filter = 'none'
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = '#FFFFFF'
-                                            e.currentTarget.style.boxShadow = 'none'
-                                            e.currentTarget.style.transform = 'none'
-                                            e.currentTarget.style.filter = 'none'
-                                        }}
+                                        className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                     >
+                                        {showDraftBulkSelect ? (
+                                            <td className="draft-select-cell">
+                                                <input
+                                                    type="checkbox"
+                                                    className="draft-checkbox"
+                                                    aria-label={`Select draft ${draftId}`}
+                                                    checked={isSelected}
+                                                    disabled={!draftId}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                    onChange={() => toggleDraftSelection(draftId)}
+                                                />
+                                            </td>
+                                        ) : null}
                                         <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                             <span
-                                                className="inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg max-w-[140px] truncate align-middle"
-                                                style={{ background: 'rgba(40,121,182,0.08)', color: '#2879b6' }}
+                                                className="record-id-badge inline-block max-w-[140px] truncate align-middle"
                                                 title={entry.expenseId}
                                             >
                                                 {entry.expenseId}
@@ -1834,23 +2265,20 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                         <td className="px-3 py-2.5 align-middle">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <div
-                                                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                                                    style={{
-                                                        background: `linear-gradient(135deg, ${cfg.colorFrom}, ${cfg.colorTo})`,
-                                                    }}
+                                                    className="record-type-icon"
                                                 >
                                                     <i className={`${cfg.icon} text-white text-sm`} />
                                                 </div>
-                                                <span className="text-[11px] sm:text-xs font-semibold truncate min-w-0" style={{ color: cfg.text }}>
+                                                <span className="record-type-label truncate min-w-0">
                                                     {entry.expenseType}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-3 py-2.5 align-middle text-right">
-                                            <span className="text-xs sm:text-sm font-bold text-gray-900 tabular-nums">{formatINR(entry.totalAmount)}</span>
+                                            <span className="record-amount">{formatINR(entry.totalAmount)}</span>
                                         </td>
                                         <td className="px-3 py-2.5 align-top max-w-[200px]">
-                                            <CurrentStepBadges text={entry.currentStep} size="sm" />
+                                            <CurrentStepBadges text={entry.currentStep} size="sm" accent={activeTab.color} />
                                         </td>
                                         <td className="px-3 py-2.5 align-top">
                                             <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
@@ -1872,8 +2300,19 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 980 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
+                                {showDraftBulkSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all drafts on this page"
+                                            checked={allDraftRowsSelected}
+                                            onChange={(event) => toggleAllDraftsOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {[
-                                    { label: 'Request ID', align: 'left' },
+                                    // { label: 'Request ID', align: 'left' },
                                     { label: 'Requested Date', align: 'left' },
                                     { label: 'Requestor', align: 'left' },
                                     { label: 'Link To Travel', align: 'left' },
@@ -1902,34 +2341,38 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="cursor-pointer transition-all"
-                                    style={{
-                                        borderBottom: '1px solid #F2F4F7',
-                                        transformOrigin: 'center',
-                                        transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = '#f8faff'
-                                        e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'translateX(2px)'
-                                        e.currentTarget.style.filter = 'none'
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = '#FFFFFF'
-                                        e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'none'
-                                        e.currentTarget.style.filter = 'none'
-                                    }}
+                                    className={`records-data-row cursor-pointer ${
+                                        showDraftBulkSelect &&
+                                        selectedDraftIds.has(resolveDraftDeleteId(entry.row))
+                                            ? 'is-selected'
+                                            : ''
+                                    }`}
                                 >
+                                    {showDraftBulkSelect ? (
+                                        <td className="draft-select-cell">
+                                            <input
+                                                type="checkbox"
+                                                className="draft-checkbox"
+                                                aria-label={`Select draft ${resolveDraftDeleteId(entry.row)}`}
+                                                checked={selectedDraftIds.has(resolveDraftDeleteId(entry.row))}
+                                                disabled={!resolveDraftDeleteId(entry.row)}
+                                                onClick={(event) => event.stopPropagation()}
+                                                onChange={() =>
+                                                    toggleDraftSelection(resolveDraftDeleteId(entry.row))
+                                                }
+                                            />
+                                        </td>
+                                    ) : null}
+                                    {/*
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                         <span
-                                            className="inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg max-w-[160px] truncate align-middle"
-                                            style={{ background: 'rgba(125,194,68,0.12)', color: '#3f6212' }}
+                                            className="record-id-badge inline-block max-w-[160px] truncate align-middle"
                                             title={entry.requestId}
                                         >
                                             {entry.requestId}
                                         </span>
                                     </td>
+                                    */}
                                     <td className="px-3 py-2.5 align-middle text-[11px] sm:text-xs text-gray-500 whitespace-nowrap">
                                         {entry.requestedDateStr || '—'}
                                     </td>
@@ -1944,10 +2387,10 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                         </span>
                                     </td>
                                     <td className="px-3 py-2.5 align-middle text-right">
-                                        <span className="text-xs sm:text-sm font-bold text-gray-900 tabular-nums">{formatINR(entry.advanceAmount)}</span>
+                                        <span className="record-amount">{formatINR(entry.advanceAmount)}</span>
                                     </td>
                                     <td className="px-3 py-2.5 align-top max-w-[220px]">
-                                        <CurrentStepBadges text={entry.currentStep} size="sm" />
+                                        <CurrentStepBadges text={entry.currentStep} size="sm" accent={activeTab.color} />
                                     </td>
                                     <td className="px-3 py-2.5 align-top">
                                         <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
@@ -1968,19 +2411,31 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 1080 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
+                                {showDraftBulkSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all drafts on this page"
+                                            checked={allDraftRowsSelected}
+                                            onChange={(event) => toggleAllDraftsOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {[
-                                    { label: 'Request ID', align: 'left' },
+                                    // { label: 'Request ID', align: 'left' },
                                     { label: 'Requestor', align: 'left' },
                                     { label: 'Trip Type', align: 'left' },
                                     { label: 'Departure Date', align: 'left' },
                                     { label: 'Source (From)', align: 'left' },
+                                    { label: '', align: 'center', key: 'route-icon' },
                                     { label: 'Destination (To)', align: 'left' },
                                     { label: 'Booking Amount', align: 'right' },
                                     { label: 'Current step', align: 'left' },
                                     { label: 'SLA', align: 'left' },
                                 ].map((h) => (
                                     <th
-                                        key={h.label}
+                                        key={h.key || h.label}
                                         className="text-[10px] sm:text-xs font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap px-3 py-2.5"
                                         style={{
                                             textAlign: h.align,
@@ -1997,42 +2452,37 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                         </thead>
                         <tbody>
                             {paginatedRows.map((entry, idx) => {
-                                const typeStyle = TRAVEL_TYPE_STYLE[entry.travelTypeKey] || {
-                                    bg: 'rgba(100,116,139,0.10)',
-                                    color: '#475569',
-                                }
+                                const draftId = resolveDraftDeleteId(entry.row)
+                                const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
                                 return (
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="cursor-pointer transition-all"
-                                    style={{
-                                        borderBottom: '1px solid #F2F4F7',
-                                        transformOrigin: 'center',
-                                        transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = '#f8faff'
-                                        e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'translateX(2px)'
-                                        e.currentTarget.style.filter = 'none'
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = '#FFFFFF'
-                                        e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'none'
-                                        e.currentTarget.style.filter = 'none'
-                                    }}
+                                    className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                 >
+                                    {showDraftBulkSelect ? (
+                                        <td className="draft-select-cell">
+                                            <input
+                                                type="checkbox"
+                                                className="draft-checkbox"
+                                                aria-label={`Select draft ${draftId}`}
+                                                checked={isSelected}
+                                                disabled={!draftId}
+                                                onClick={(event) => event.stopPropagation()}
+                                                onChange={() => toggleDraftSelection(draftId)}
+                                            />
+                                        </td>
+                                    ) : null}
+                                    {/*
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                         <span
-                                            className="inline-block text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg max-w-[160px] truncate align-middle"
-                                            style={{ background: 'rgba(238,106,49,0.12)', color: '#9a3412' }}
+                                            className="record-id-badge inline-block max-w-[160px] truncate align-middle"
                                             title={entry.requestId}
                                         >
                                             {entry.requestId}
                                         </span>
                                     </td>
+                                    */}
                                     <td className="px-3 py-2.5 align-middle max-w-[140px]">
                                         <span className="text-[11px] sm:text-xs text-gray-700 truncate block" title={entry.requestorText || ''}>
                                             {entry.requestorText || '—'}
@@ -2040,8 +2490,7 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                     </td>
                                     <td className="px-3 py-2.5 align-middle whitespace-nowrap">
                                         <span
-                                            className="inline-block text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-lg"
-                                            style={{ background: typeStyle.bg, color: typeStyle.color }}
+                                            className="travel-type-badge"
                                         >
                                             {entry.tripTypeLabel}
                                         </span>
@@ -2049,32 +2498,33 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                     <td className="px-3 py-2.5 align-middle text-[11px] sm:text-xs text-gray-500 whitespace-nowrap">
                                         {entry.departureDateStr || '—'}
                                     </td>
-                                    {entry.isMultiCity ? (
-                                        <td className="px-3 py-2.5 align-middle" colSpan={2}>
-                                            <span
-                                                className="text-[11px] sm:text-xs font-semibold text-gray-700"
-                                                title={entry.routeSummary || entry.fromText}
-                                            >
-                                                {entry.routeSummary || entry.fromText || '—'}
-                                            </span>
-                                        </td>
-                                    ) : (
-                                        <>
-                                            <td className="px-3 py-2.5 align-middle">
-                                                <span className="text-[11px] sm:text-xs font-semibold text-gray-700">{entry.fromText}</span>
-                                            </td>
-                                            <td className="px-3 py-2.5 align-middle">
-                                                <span className="text-[11px] sm:text-xs font-semibold text-gray-700">{entry.toTextValue}</span>
-                                            </td>
-                                        </>
-                                    )}
+                                    {(() => {
+                                        const route = splitTravelRoute(entry)
+                                        return (
+                                            <>
+                                                <td className="px-3 py-2.5 align-middle">
+                                                    <span className="text-[11px] sm:text-xs font-semibold text-gray-700" title={entry.routeSummary || route.from}>
+                                                        {route.from}
+                                                    </span>
+                                                </td>
+                                                <td className="px-1 py-2.5 align-middle text-center">
+                                                    <TripRouteIcon tripTypeKey={entry.travelTypeKey} label={entry.tripTypeLabel} />
+                                                </td>
+                                                <td className="px-3 py-2.5 align-middle">
+                                                    <span className="text-[11px] sm:text-xs font-semibold text-gray-700" title={entry.routeSummary || route.to}>
+                                                        {route.to}
+                                                    </span>
+                                                </td>
+                                            </>
+                                        )
+                                    })()}
                                     <td className="px-3 py-2.5 align-middle text-right whitespace-nowrap">
-                                        <span className="text-xs sm:text-sm font-bold text-gray-900 tabular-nums">
+                                        <span className="record-amount">
                                             {formatINR(entry.bookingAmount)}
                                         </span>
                                     </td>
                                     <td className="px-3 py-2.5 align-top max-w-[220px]">
-                                        <CurrentStepBadges text={entry.currentStep} size="sm" />
+                                        <CurrentStepBadges text={entry.currentStep} size="sm" accent={activeTab.color} />
                                     </td>
                                     <td className="px-3 py-2.5 align-top">
                                         <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
@@ -2096,6 +2546,17 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
                         <thead>
                             <tr>
+                                {showDraftBulkSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all drafts on this page"
+                                            checked={allDraftRowsSelected}
+                                            onChange={(event) => toggleAllDraftsOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {cols.map((c) => (
                                     <th
                                         key={c.Id}
@@ -2122,25 +2583,28 @@ export default function PendingApprovalsWidget({ onPopupClosed } = {}) {
                                 <tr
                                     key={getRowId(row, idx)}
                                     onClick={() => handleRowClick(row)}
-                                    className="cursor-pointer transition-all"
-                                    style={{
-                                        borderBottom: '1px solid #F2F4F7',
-                                        transformOrigin: 'center',
-                                        transition: 'all 180ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        e.currentTarget.style.background = '#f8faff'
-                                        e.currentTarget.style.boxShadow = `inset 3px 0 0 ${activeTab.color}`
-                                        e.currentTarget.style.transform = 'translateX(2px)'
-                                        e.currentTarget.style.filter = 'none'
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        e.currentTarget.style.background = '#FFFFFF'
-                                        e.currentTarget.style.boxShadow = 'none'
-                                        e.currentTarget.style.transform = 'none'
-                                        e.currentTarget.style.filter = 'none'
-                                    }}
+                                    className={`records-data-row cursor-pointer ${
+                                        showDraftBulkSelect &&
+                                        selectedDraftIds.has(resolveDraftDeleteId(row))
+                                            ? 'is-selected'
+                                            : ''
+                                    }`}
                                 >
+                                    {showDraftBulkSelect ? (
+                                        <td className="draft-select-cell">
+                                            <input
+                                                type="checkbox"
+                                                className="draft-checkbox"
+                                                aria-label={`Select draft ${resolveDraftDeleteId(row)}`}
+                                                checked={selectedDraftIds.has(resolveDraftDeleteId(row))}
+                                                disabled={!resolveDraftDeleteId(row)}
+                                                onClick={(event) => event.stopPropagation()}
+                                                onChange={() =>
+                                                    toggleDraftSelection(resolveDraftDeleteId(row))
+                                                }
+                                            />
+                                        </td>
+                                    ) : null}
                                     {cols.map((c) => (
                                         <td
                                             key={c.Id}

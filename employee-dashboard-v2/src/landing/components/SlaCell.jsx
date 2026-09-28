@@ -40,16 +40,16 @@ export function formatSlaCompactDuration(ms) {
 /** Green (≥24h) · Yellow (<24h) · Orange (<1h) · Red (breached). */
 export function getSlaPillStyle(remainingMs, breached) {
     if (breached) {
-        return { bg: 'rgba(220, 38, 38, 0.12)', color: '#991b1b', dot: '#ef4444' }
+        return { bg: 'rgba(229,57,53,.1)', color: '#c62828', dot: '#E53935', border: 'rgba(229,57,53,.24)' }
     }
     const hours = remainingMs / 3600000
     if (hours < 1) {
-        return { bg: 'rgba(249, 115, 22, 0.14)', color: '#c2410c', dot: '#ea580c' }
+        return { bg: 'rgba(238,106,49,.12)', color: '#c45122', dot: '#ee6a31', border: 'rgba(238,106,49,.26)' }
     }
     if (hours < 24) {
-        return { bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309', dot: '#f59e0b' }
+        return { bg: 'rgba(251,140,0,.11)', color: '#b86200', dot: '#FB8C00', border: 'rgba(251,140,0,.24)' }
     }
-    return { bg: 'rgba(19, 155, 73, 0.1)', color: '#166534', dot: '#22c55e' }
+    return { bg: 'rgba(67,160,71,.1)', color: '#2e7d32', dot: '#43A047', border: 'rgba(67,160,71,.23)' }
 }
 
 export default function SlaCell({ deadlineAtMs, deadlineLabel, size = 'sm' }) {
@@ -94,15 +94,20 @@ export default function SlaCell({ deadlineAtMs, deadlineLabel, size = 'sm' }) {
     const pillStyle = getSlaPillStyle(diffMs, breached)
 
     return (
-        <div className="flex flex-col gap-1 min-w-0 max-w-[200px]">
-            <span className="text-[11px] text-gray-600 tabular-nums leading-snug whitespace-nowrap">{deadlineText}</span>
+        <div className="sla-cell">
+            <span className="sla-deadline">{deadlineText}</span>
             {hasDeadlineMs && (
                 <span
-                    className={`inline-flex items-center gap-1 rounded-full font-semibold whitespace-nowrap w-fit ${textClass} ${pad}`}
-                    style={{ background: pillStyle.bg, color: pillStyle.color }}
+                    className={`sla-pill ${textClass} ${pad}`}
+                    style={{
+                        '--sla-bg': pillStyle.bg,
+                        '--sla-color': pillStyle.color,
+                        '--sla-dot': pillStyle.dot,
+                        '--sla-border': pillStyle.border,
+                    }}
                     title={breached ? 'SLA breached' : 'Time remaining'}
                 >
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: pillStyle.dot }} />
+                    <span className="sla-dot" />
                     {pillText}
                 </span>
             )}

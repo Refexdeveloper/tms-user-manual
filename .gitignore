@@ -32,6 +32,24 @@ apps/api/uploads/
 .vscode/
 *.swp
 
-# Zip artifacts (rebuild with npm run zip)
-# Keep component zips if useful for Kissflow upload — uncomment to ignore:
-# **/*.zip
+# Archives & build artifacts (rebuild zips with npm run zip)
+*.zip
+*.rar
+*.7z
+*.tar
+*.tar.gz
+*.tgz
+*.gz
+*.bz2
+*.xz
+*.iso
+*.apk
+*.aab
+
+# Android / Gradle caches
+**/.gradle/
+**/build/
+
+# Separate local projects / backups (not part of this repo)
+sipl/
+sipl_lib_backup_*/

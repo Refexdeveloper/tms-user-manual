@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="carShadow" x="-20%" y="-10%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <filter id="pinShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#1d4ed8" flood-opacity="0.35"/>
+    </filter>
+    <linearGradient id="carBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="carRoof" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="pinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <radialGradient id="carShine" cx="25%" cy="18%" r="60%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Car shadow -->
+  <ellipse cx="126" cy="198" rx="80" ry="10" fill="rgba(0,0,0,0.1)"/>
+  <!-- Car body -->
+  <rect x="46" y="148" width="160" height="50" rx="14" fill="url(#carBody)" filter="url(#carShadow)"/>
+  <!-- Car roof / cabin -->
+  <path d="M 80 148 Q 88 108 106 108 L 158 108 Q 176 108 180 148 Z" fill="url(#carRoof)"/>
+  <!-- Windshield -->
+  <path d="M 90 148 Q 96 118 108 118 L 154 118 Q 166 118 170 148 Z" fill="rgba(147,210,255,0.55)" opacity="0.85"/>
+  <!-- Windows -->
+  <rect x="94" y="116" width="28" height="24" rx="5" fill="rgba(147,210,255,0.4)"/>
+  <rect x="132" y="116" width="28" height="24" rx="5" fill="rgba(147,210,255,0.4)"/>
+  <!-- Taxi stripe -->
+  <rect x="46" y="162" width="160" height="6" fill="rgba(0,0,0,0.12)"/>
+  <rect x="68" y="162" width="28" height="6" fill="rgba(0,0,0,0.08)"/>
+  <rect x="110" y="162" width="28" height="6" fill="rgba(0,0,0,0.08)"/>
+  <rect x="156" y="162" width="28" height="6" fill="rgba(0,0,0,0.08)"/>
+  <!-- Front headlight -->
+  <ellipse cx="210" cy="170" rx="8" ry="7" fill="rgba(255,247,200,0.9)"/>
+  <ellipse cx="210" cy="170" rx="5" ry="4" fill="rgba(255,255,255,0.8)"/>
+  <!-- Back light -->
+  <ellipse cx="46" cy="170" rx="8" ry="7" fill="rgba(255,100,80,0.7)"/>
+  <!-- Wheels -->
+  <circle cx="88" cy="196" r="20" fill="#374151"/>
+  <circle cx="88" cy="196" r="13" fill="#6b7280"/>
+  <circle cx="88" cy="196" r="6" fill="#9ca3af"/>
+  <circle cx="174" cy="196" r="20" fill="#374151"/>
+  <circle cx="174" cy="196" r="13" fill="#6b7280"/>
+  <circle cx="174" cy="196" r="6" fill="#9ca3af"/>
+  <!-- Car body shine -->
+  <rect x="46" y="148" width="160" height="50" rx="14" fill="url(#carShine)"/>
+  <!-- Location Pin badge -->
+  <circle cx="186" cy="86" r="32" fill="url(#pinGrad)" filter="url(#pinShadow)"/>
+  <circle cx="186" cy="86" r="32" fill="url(#carShine)" opacity="0.4"/>
+  <!-- Pin icon inside badge -->
+  <path d="M 186 66 C 178 66 171 73 171 81 C 171 92 186 106 186 106 C 186 106 201 92 201 81 C 201 73 194 66 186 66 Z" fill="white"/>
+  <circle cx="186" cy="81" r="6" fill="url(#pinGrad)"/>
+</svg>

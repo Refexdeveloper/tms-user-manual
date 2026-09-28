@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#b91c1c" flood-opacity="0.22"/>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <linearGradient id="docGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8f0f0"/>
+    </linearGradient>
+    <linearGradient id="redBadge" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f87171"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="30%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Document shadow -->
+  <rect x="62" y="48" width="132" height="168" rx="16" ry="16" fill="rgba(0,0,0,0.06)" transform="translate(4,10)"/>
+  <!-- Document body -->
+  <rect x="62" y="38" width="132" height="170" rx="16" ry="16" fill="url(#docGrad)" filter="url(#softShadow)"/>
+  <!-- Document fold corner -->
+  <polygon points="158,38 194,38 194,68" fill="#f0e8e8" opacity="0.8"/>
+  <polygon points="158,38 194,68 158,68" fill="#e8d8d8" opacity="0.5"/>
+  <!-- Document lines -->
+  <rect x="82" y="72" width="65" height="7" rx="3.5" fill="#e8d0d0" opacity="0.7"/>
+  <rect x="82" y="90" width="90" height="5" rx="2.5" fill="#f0e0e0" opacity="0.6"/>
+  <rect x="82" y="104" width="76" height="5" rx="2.5" fill="#f0e0e0" opacity="0.6"/>
+  <rect x="82" y="118" width="82" height="5" rx="2.5" fill="#f0e0e0" opacity="0.6"/>
+  <rect x="82" y="132" width="68" height="5" rx="2.5" fill="#f0e0e0" opacity="0.6"/>
+  <!-- Shine on document -->
+  <rect x="62" y="38" width="132" height="170" rx="16" ry="16" fill="url(#shine)"/>
+  <!-- Red X Badge -->
+  <circle cx="176" cy="170" r="36" fill="url(#redBadge)" filter="url(#shadow)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#shine)" opacity="0.4"/>
+  <!-- X mark -->
+  <line x1="162" y1="156" x2="190" y2="184" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <line x1="190" y1="156" x2="162" y2="184" stroke="white" stroke-width="6" stroke-linecap="round"/>
+  <!-- Badge highlight -->
+  <circle cx="168" cy="160" r="10" fill="rgba(255,255,255,0.2)" opacity="0.6"/>
+</svg>

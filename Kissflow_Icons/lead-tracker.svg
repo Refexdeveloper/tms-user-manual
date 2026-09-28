@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  
+  <defs>
+    <filter id="drop-shadow" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.22"/>
+    </filter>
+    <filter id="glow-badge" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#2563EB" flood-opacity="0.3"/>
+    </filter>
+    <filter id="gold-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#D97706" flood-opacity="0.35"/>
+    </filter>
+
+    <linearGradient id="redGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#B91C1C"/>
+    </linearGradient>
+    <linearGradient id="blueRing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <linearGradient id="bullseye" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="arrowShaft" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E2E8F0"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </linearGradient>
+    <linearGradient id="featherGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="128" cy="226" rx="72" ry="14" fill="#0F172A" opacity="0.16" filter="blur(6px)"/>
+
+  <g filter="url(#soft-shadow)">
+    <path d="M 85 180 L 60 220" stroke="#475569" stroke-width="8" stroke-linecap="round"/>
+    <path d="M 171 180 L 196 220" stroke="#475569" stroke-width="8" stroke-linecap="round"/>
+    <path d="M 128 175 L 128 222" stroke="#334155" stroke-width="8" stroke-linecap="round"/>
+
+    <circle cx="128" cy="116" r="82" fill="#1E293B"/>
+    <circle cx="128" cy="116" r="78" fill="#F8FAFC"/>
+    
+    <circle cx="128" cy="116" r="72" fill="url(#redGrad)"/>
+    <circle cx="128" cy="116" r="54" fill="#FFFFFF"/>
+    
+    <circle cx="128" cy="116" r="42" fill="url(#blueRing)"/>
+    <circle cx="128" cy="116" r="28" fill="#FFFFFF"/>
+
+    <circle cx="128" cy="116" r="16" fill="url(#bullseye)"/>
+    <circle cx="128" cy="116" r="7" fill="#B45309"/>
+    <circle cx="128" cy="116" r="15" fill="none" stroke="#FDE68A" stroke-width="1.5" opacity="0.8"/>
+  </g>
+
+  <ellipse cx="128" cy="116" rx="22" ry="12" fill="none" stroke="#FEF08A" stroke-width="2.5" opacity="0.6"/>
+
+  <g filter="url(#drop-shadow)">
+    <line x1="172" y1="72" x2="210" y2="34" stroke="#93C5FD" stroke-width="3" stroke-dasharray="6 4" opacity="0.8"/>
+    <line x1="184" y1="84" x2="222" y2="46" stroke="#93C5FD" stroke-width="2" stroke-dasharray="4 3" opacity="0.6"/>
+
+    <line x1="128" y1="116" x2="198" y2="46" stroke="url(#arrowShaft)" stroke-width="7" stroke-linecap="round"/>
+    <line x1="128" y1="116" x2="198" y2="46" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+
+    <path d="M 124 120 L 132 112 L 122 110 Z" fill="#64748B"/>
+
+    <g transform="translate(196, 48) rotate(-45)">
+      <path d="M 0 0 L -10 -22 L 6 -16 Z" fill="url(#featherGrad)"/>
+      <path d="M 0 0 L -10 22 L 6 16 Z" fill="url(#featherGrad)"/>
+      <path d="M 0 0 L 16 0 L 22 -6 L 0 -6 Z" fill="#047857"/>
+      <circle cx="4" cy="0" r="4" fill="#F59E0B"/>
+    </g>
+  </g>
+</svg>

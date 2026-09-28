@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { kf } from './../sdk/index.js'
 import PendingApprovalsWidget from './components/PendingApprovalsWidget.jsx'
+import SatelliteCreateMenu from './components/SatelliteCreateMenu.jsx'
 import {
     flightIcon,
     customTravelBookingIcon,
@@ -16,6 +17,11 @@ const APP_ID = 'Expense_and_Travel_Management_A00'
 const EMPLOYEE_DASHBOARD_PAGE_ID = 'Employee_Dashboard_V2_A00'
 const REPORT_PAGE_SIZE = 2000
 const REPORT_MAX_PAGES = 15
+const CREATE_POPUPS = {
+    expense: 'Popup_E4xarw8lLE',
+    advance: 'Popup_J0C5lIdWCL',
+    travel: 'Popup_rCILSrY8KF',
+}
 
 /** Pending items per process — same reports as the pending-approvals widget */
 const PENDING_COUNT_TABS = [
@@ -185,20 +191,40 @@ const COMPACT_CARD = {
     },
 }
 
-function CompactSummaryCard({ title, values, variant, delayClass = '' }) {
+const SUMMARY_FOCUS = {
+    pending: { bucket: 'pending', processKey: null, label: 'Pending requests' },
+    'pending-travel': { bucket: 'pending', processKey: 'travel', label: 'Pending · Travel Booking' },
+    'pending-advance': { bucket: 'pending', processKey: 'advance', label: 'Pending · Travel Advance' },
+    'pending-expense': { bucket: 'pending', processKey: 'expense', label: 'Pending · Travel Expense' },
+    nearing: { bucket: 'nearing', processKey: null, label: 'Nearing SLA' },
+    'nearing-travel': { bucket: 'nearing', processKey: 'travel', label: 'Nearing SLA · Travel Booking' },
+    'nearing-advance': { bucket: 'nearing', processKey: 'advance', label: 'Nearing SLA · Travel Advance' },
+    'nearing-expense': { bucket: 'nearing', processKey: 'expense', label: 'Nearing SLA · Travel Expense' },
+    breached: { bucket: 'breached', processKey: null, label: 'SLA Breached' },
+    'breached-travel': { bucket: 'breached', processKey: 'travel', label: 'SLA Breached · Travel Booking' },
+    'breached-advance': { bucket: 'breached', processKey: 'advance', label: 'SLA Breached · Travel Advance' },
+    'breached-expense': { bucket: 'breached', processKey: 'expense', label: 'SLA Breached · Travel Expense' },
+    exception: { bucket: 'exception', processKey: null, label: 'Exception' },
+    'exception-travel': { bucket: 'exception', processKey: 'travel', label: 'Exception · Travel Booking' },
+    'exception-advance': { bucket: 'exception', processKey: 'advance', label: 'Exception · Travel Advance' },
+    'exception-expense': { bucket: 'exception', processKey: 'expense', label: 'Exception · Travel Expense' },
+}
+
+function CompactSummaryCard({ title, values, variant, delayClass = '', activeKey = null, onSelect }) {
     const s = COMPACT_CARD[variant]
     const expense = values?.expense ?? 0
     const advance = values?.advance ?? 0
     const travel = values?.travel ?? 0
     const total = expense + advance + travel
     const breakdown = [
-        { label: 'Booking', value: travel, icon: customTravelBookingIcon },
-        { label: 'Advance', value: advance, icon: customTravelAdvanceIcon },
-        { label: 'Expense', value: expense, icon: customTravelExpenseIcon },
+        { label: 'Booking', value: travel, icon: customTravelBookingIcon, processKey: 'travel' },
+        { label: 'Advance', value: advance, icon: customTravelAdvanceIcon, processKey: 'advance' },
+        { label: 'Expense', value: expense, icon: customTravelExpenseIcon, processKey: 'expense' },
     ]
+    const cardActive = activeKey === variant || String(activeKey || '').startsWith(`${variant}-`)
     return (
         <div
-            className={`summary-kpi-card min-w-0 animate-fade-in-up ${delayClass}`}
+            className={`summary-kpi-card min-w-0 animate-fade-in-up ${delayClass}${cardActive ? ' is-active' : ''}`}
             style={{
                 '--summary-accent': s.valueColor,
                 '--summary-border': s.border,
@@ -206,38 +232,138 @@ function CompactSummaryCard({ title, values, variant, delayClass = '' }) {
             }}
         >
             <div className="summary-kpi-head">
-                <div className="summary-status-icon" aria-hidden="true">
+                <button
+                    type="button"
+                    className="summary-status-icon"
+                    aria-label={`Filter ${title}`}
+                    title={`Filter ${title}`}
+                    onClick={() => onSelect?.(variant)}
+                >
                     <span className="summary-icon-glow" />
                     <span className="summary-icon-shine" />
                     <img src={s.icon} alt="" />
-                </div>
-                <div className="summary-kpi-title">
+                </button>
+                <button
+                    type="button"
+                    className="summary-kpi-title"
+                    onClick={() => onSelect?.(variant)}
+                >
                     <p title={title}>{title}</p>
                     <span>Requires your attention</span>
-                </div>
-                <div className="summary-total">
+                </button>
+                <button
+                    type="button"
+                    className={`summary-total ${activeKey === variant ? 'is-active' : ''}`}
+                    onClick={() => onSelect?.(variant)}
+                >
                     <AnimatedInt value={total} />
                     <span>Total</span>
-                </div>
+                </button>
             </div>
 
             <div className="summary-breakdown">
-                {breakdown.map((item) => (
-                    <div className="summary-breakdown-item" key={item.label}>
-                        <img src={item.icon} alt="" aria-hidden="true" />
-                        <div>
-                            <span>{item.label}</span>
-                            <AnimatedInt value={item.value} />
-                        </div>
-                    </div>
-                ))}
+                {breakdown.map((item) => {
+                    const itemKey = `${variant}-${item.processKey}`
+                    const itemActive = activeKey === itemKey
+                    return (
+                        <button
+                            type="button"
+                            className={`summary-breakdown-item ${itemActive ? 'is-active' : ''}`}
+                            key={item.label}
+                            onClick={() => onSelect?.(itemKey)}
+                        >
+                            <img src={item.icon} alt="" aria-hidden="true" />
+                            <div>
+                                <span>{item.label}</span>
+                                <AnimatedInt value={item.value} />
+                            </div>
+                        </button>
+                    )
+                })}
             </div>
         </div>
     )
 }
 
+function MobileWelcomeCard({
+    greetingText,
+    userName,
+    scope,
+    onScopeChange,
+    onRefresh,
+    createOpen,
+    onToggleCreate,
+    onCreate,
+}) {
+    return (
+        <section className="mobile-welcome" aria-label="Welcome">
+            <h1 className="mobile-welcome-title">
+                {greetingText}, {userName}
+            </h1>
+            <div className="mobile-welcome-actions">
+                <div className="mobile-welcome-scope" role="group" aria-label="Dashboard scope">
+                    {[
+                        { id: 'me', label: 'Me', color: '#1E88E5' },
+                        { id: 'team', label: 'My team', color: '#43A047' },
+                    ].map((opt) => (
+                        <button
+                            key={opt.id}
+                            type="button"
+                            className={`mobile-welcome-scope-btn${scope === opt.id ? ' is-active' : ''}`}
+                            style={{ '--scope-accent': opt.color }}
+                            onClick={() => onScopeChange(opt.id)}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="mobile-welcome-tools">
+                    <button
+                        type="button"
+                        className="mobile-welcome-icon-btn"
+                        aria-label="Refresh dashboard"
+                        onClick={onRefresh}
+                    >
+                        <i className="ri-refresh-line" aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        className={`mobile-welcome-icon-btn${createOpen ? ' is-open' : ''}`}
+                        aria-label={createOpen ? 'Close create menu' : 'Create a new request'}
+                        aria-expanded={createOpen}
+                        onClick={onToggleCreate}
+                    >
+                        <i className={`ri-add-line${createOpen ? ' is-open' : ''}`} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+            {createOpen ? (
+                <div className="mobile-welcome-creates" role="menu" aria-label="Create request">
+                    {[
+                        { key: 'travel', label: 'Travel Booking', color: '#1E88E5' },
+                        { key: 'advance', label: 'Travel Advance', color: '#43A047' },
+                        { key: 'expense', label: 'Travel Expense', color: '#FB8C00' },
+                    ].map((action) => (
+                        <button
+                            key={action.key}
+                            type="button"
+                            role="menuitem"
+                            className="mobile-welcome-create-item"
+                            style={{ '--satellite-accent': action.color }}
+                            onClick={() => onCreate?.(action.key)}
+                        >
+                            {action.label}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
+        </section>
+    )
+}
+
 export function DefaultLandingComponent() {
     const [scope, setScope] = useState('team')
+    const [createOpen, setCreateOpen] = useState(false)
     const [refreshNonce, setRefreshNonce] = useState(0)
     const [pendingCounts, setPendingCounts] = useState({
         expense: 0,
@@ -249,6 +375,9 @@ export function DefaultLandingComponent() {
         breachedSla: { expense: 0, advance: 0, travel: 0 },
         exception: { expense: 0, advance: 0, travel: 0 },
     })
+    const [recordsFocus, setRecordsFocus] = useState(null)
+    const recordsSectionRef = useRef(null)
+    const recordsPulseTimerRef = useRef(null)
 
     const userName = (kf && kf.user && kf.user.Name) || ''
     const accountId = kf?.account?._id
@@ -305,6 +434,7 @@ export function DefaultLandingComponent() {
         day: 'numeric',
         year: 'numeric',
     })
+    const currentDateLabelShort = `${now.toLocaleDateString('en-US', { weekday: 'short' })} ${now.getDate()} ${now.toLocaleDateString('en-US', { month: 'short' })}`
     const hour = now.getHours()
     const greetingText = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 21 ? 'Good evening' : 'Good night'
 
@@ -325,6 +455,89 @@ export function DefaultLandingComponent() {
     }
 
     const refreshAll = () => setRefreshNonce((n) => n + 1)
+
+    const scrollToRecords = useCallback(() => {
+        const align = () => {
+            const el = recordsSectionRef.current
+            if (!el) return
+            const root =
+                typeof document !== 'undefined'
+                    ? document.querySelector('.rootDiv') || null
+                    : null
+            const offset = 16
+            if (root) {
+                const top =
+                    el.getBoundingClientRect().top -
+                    root.getBoundingClientRect().top +
+                    root.scrollTop -
+                    offset
+                root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+                return
+            }
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+        requestAnimationFrame(() => requestAnimationFrame(align))
+    }, [])
+
+    const clearRecordsFocus = useCallback(() => {
+        setRecordsFocus(null)
+        if (recordsPulseTimerRef.current) {
+            clearTimeout(recordsPulseTimerRef.current)
+            recordsPulseTimerRef.current = null
+        }
+    }, [])
+
+    const handleSummarySelect = useCallback(
+        (focusKey) => {
+            const focus = SUMMARY_FOCUS[focusKey]
+            if (!focus) return
+            if (recordsFocus?.key === focusKey) {
+                clearRecordsFocus()
+                return
+            }
+            const token = Date.now()
+            setRecordsFocus({ key: focusKey, token, pulse: true, ...focus })
+            scrollToRecords()
+            if (recordsPulseTimerRef.current) clearTimeout(recordsPulseTimerRef.current)
+            recordsPulseTimerRef.current = setTimeout(() => {
+                setRecordsFocus((prev) =>
+                    prev?.token === token ? { ...prev, pulse: false } : prev,
+                )
+            }, 2400)
+        },
+        [clearRecordsFocus, recordsFocus?.key, scrollToRecords],
+    )
+
+    useEffect(
+        () => () => {
+            if (recordsPulseTimerRef.current) clearTimeout(recordsPulseTimerRef.current)
+        },
+        [],
+    )
+
+    const openCreatePopup = (type) => {
+        const popupId = CREATE_POPUPS[type]
+        if (!popupId || typeof kf?.app?.page?.openPopup !== 'function') {
+            kf?.client?.showInfo?.('Unable to open the create form.')
+            return
+        }
+
+        try {
+            window.__KF_DASH_POPUP_SEQ__ = Number(window.__KF_DASH_POPUP_SEQ__ || 0) + 1
+            window.__KF_DASH_POPUP_OPENED_AT__ = Date.now()
+            const popup = kf.app.page.openPopup(popupId)
+            if (popup && typeof popup.catch === 'function') {
+                popup.catch((error) => {
+                    console.error('Create popup failed', error)
+                    kf?.client?.showInfo?.('Unable to open the create form.')
+                })
+            }
+            setTimeout(refreshAll, 1500)
+        } catch (error) {
+            console.error('Create popup failed', error)
+            kf?.client?.showInfo?.('Unable to open the create form.')
+        }
+    }
 
     useEffect(() => {
         const events = kf?.events || kf?.event
@@ -392,9 +605,22 @@ export function DefaultLandingComponent() {
     return (
         <div className="min-h-screen bg-gray-50 overflow-y-auto">
             <div className="p-2.5 sm:p-4 lg:p-6">
+                <MobileWelcomeCard
+                    greetingText={greetingText}
+                    userName={userName}
+                    scope={scope}
+                    onScopeChange={handleScopeSwitch}
+                    onRefresh={refreshAll}
+                    createOpen={createOpen}
+                    onToggleCreate={() => setCreateOpen((open) => !open)}
+                    onCreate={(key) => {
+                        setCreateOpen(false)
+                        openCreatePopup(key)
+                    }}
+                />
                 <div
-                    className="travel-hero rounded-xl sm:rounded-2xl mb-2.5 sm:mb-6 relative overflow-hidden animate-fade-in-up border border-white/80"
-                    style={{ background: 'radial-gradient(circle at 72% 10%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(105deg, #2f87c8 0%, #51a6d8 58%, #7dbfe4 100%)', padding: '12px 16px' }}
+                    className="travel-hero rounded-xl sm:rounded-2xl mb-2.5 sm:mb-6 relative animate-fade-in-up border border-white/80"
+                    style={{ background: 'radial-gradient(circle at 72% 10%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(105deg, #2f87c8 0%, #51a6d8 58%, #7dbfe4 100%)' }}
                 >
                     <div className="travel-hero-art" aria-hidden="true">
                         <span className="travel-cloud travel-cloud-one" />
@@ -407,53 +633,103 @@ export function DefaultLandingComponent() {
                         <span className="travel-hero-quote">“New places.<br />Greater possibilities.”</span>
                     </div>
 
-                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5 sm:gap-4">
-                        <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5 sm:mb-1">
-                                <span className="text-[9px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.8)' }}>
-                                    {currentDateLabel}
+                    <div className="travel-hero-content relative z-10">
+                        <div className="travel-hero-main">
+                            <div className="travel-hero-head">
+                                <span className="travel-hero-date">
+                                    <span className="travel-hero-date-short">{currentDateLabelShort}</span>
+                                    <span className="travel-hero-date-long">{currentDateLabel}</span>
                                 </span>
+                                <div
+                                    className="travel-hero-scope travel-hero-scope--bar inline-flex flex-shrink-0 gap-0.5 rounded-xl p-0.5"
+                                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.12)' }}
+                                    role="group"
+                                    aria-label="Dashboard scope"
+                                >
+                                    {[
+                                        { id: 'me', label: 'Me', short: 'Me' },
+                                        { id: 'team', label: 'My Team', short: 'Team' },
+                                    ].map((opt) => {
+                                        const active = scope === opt.id
+                                        return (
+                                            <button
+                                                key={`bar-${opt.id}`}
+                                                type="button"
+                                                onClick={() => handleScopeSwitch(opt.id)}
+                                                className="travel-hero-scope-btn"
+                                                style={
+                                                    active
+                                                        ? {
+                                                              background: 'rgba(255,255,255,0.95)',
+                                                              color: '#0D1F3C',
+                                                              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                                                          }
+                                                        : {
+                                                              background: 'transparent',
+                                                              color: 'rgba(255,255,255,0.75)',
+                                                          }
+                                                }
+                                            >
+                                                <span className="travel-hero-scope-short">{opt.short}</span>
+                                                <span className="travel-hero-scope-long">
+                                                    {opt.id === 'team' ? <>My<br />Team</> : opt.label}
+                                                </span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
                             </div>
-                            <h1 className="text-white text-[15px] sm:text-2xl font-bold leading-tight mt-1 sm:mt-2">{greetingText}, {userName}! 👋</h1>
-                            <p className="text-white/70 text-[9px] sm:text-sm mt-0.5 sm:mt-1.5 max-w-full sm:max-w-md">
-                             {companyDisplayName}
-                            </p>
+                            <div className="travel-hero-copy">
+                                <h1 className="travel-hero-title">
+                                    <span className="travel-hero-greeting">{greetingText}</span>
+                                    <span className="travel-hero-name">{userName}! 👋</span>
+                                </h1>
+                                <p className="travel-hero-company">
+                                    {companyDisplayName}
+                                </p>
+                            </div>
                         </div>
 
-                        <div
-                            className="travel-hero-scope flex-shrink-0 inline-flex rounded-xl p-0.5 sm:p-1 gap-0.5 self-center sm:self-auto scale-95 sm:scale-100"
-                            style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.12)' }}
-                            role="group"
-                            aria-label="Dashboard scope"
-                        >
-                            {[
-                                { id: 'me', label: 'Me' },
-                                { id: 'team', label: 'My Team' },
-                            ].map((opt) => {
-                                const active = scope === opt.id
-                                return (
-                                    <button
-                                        key={opt.id}
-                                        type="button"
-                                        onClick={() => handleScopeSwitch(opt.id)}
-                                        className="px-1.5 sm:px-4 py-1 sm:py-2 rounded-lg text-[9px] sm:text-xs font-semibold transition-all min-w-[58px] sm:min-w-[88px]"
-                                        style={
-                                            active
-                                                ? {
-                                                      background: 'rgba(255,255,255,0.95)',
-                                                      color: '#0D1F3C',
-                                                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                                                  }
-                                                : {
-                                                      background: 'transparent',
-                                                      color: 'rgba(255,255,255,0.75)',
-                                                  }
-                                        }
-                                    >
-                                        {opt.label}
-                                    </button>
-                                )
-                            })}
+                        <div className="travel-hero-aside">
+                            <SatelliteCreateMenu onCreate={openCreatePopup} />
+                            <div
+                                className="travel-hero-scope travel-hero-scope--aside inline-flex flex-shrink-0 gap-0.5 rounded-xl p-0.5"
+                                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.12)' }}
+                                role="group"
+                                aria-label="Dashboard scope"
+                            >
+                                {[
+                                    { id: 'me', label: 'Me', short: 'Me' },
+                                    { id: 'team', label: 'My Team', short: 'Team' },
+                                ].map((opt) => {
+                                    const active = scope === opt.id
+                                    return (
+                                        <button
+                                            key={`aside-${opt.id}`}
+                                            type="button"
+                                            onClick={() => handleScopeSwitch(opt.id)}
+                                            className="travel-hero-scope-btn"
+                                            style={
+                                                active
+                                                    ? {
+                                                          background: 'rgba(255,255,255,0.95)',
+                                                          color: '#0D1F3C',
+                                                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                                                      }
+                                                    : {
+                                                          background: 'transparent',
+                                                          color: 'rgba(255,255,255,0.75)',
+                                                      }
+                                            }
+                                        >
+                                            <span className="travel-hero-scope-short">{opt.short}</span>
+                                            <span className="travel-hero-scope-long">
+                                                {opt.id === 'team' ? <>My<br />Team</> : opt.label}
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -464,18 +740,24 @@ export function DefaultLandingComponent() {
                         values={pendingCounts}
                         variant="pending"
                         delayClass="delay-75"
+                        activeKey={recordsFocus?.key}
+                        onSelect={handleSummarySelect}
                     />
                     <CompactSummaryCard
                         title="Nearing SLA"
                         values={slaSummary.nearingSla}
                         variant="nearing"
                         delayClass="delay-100"
+                        activeKey={recordsFocus?.key}
+                        onSelect={handleSummarySelect}
                     />
                     <CompactSummaryCard
                         title="SLA Breached"
                         values={slaSummary.breachedSla}
                         variant="breached"
                         delayClass="delay-150"
+                        activeKey={recordsFocus?.key}
+                        onSelect={handleSummarySelect}
                     />
                     {!hideExceptionCard && (
                         <CompactSummaryCard
@@ -483,14 +765,18 @@ export function DefaultLandingComponent() {
                             values={slaSummary.exception}
                             variant="exception"
                             delayClass="delay-200"
+                            activeKey={recordsFocus?.key}
+                            onSelect={handleSummarySelect}
                         />
                     )}
                 </div>
 
-                <div className="animate-fade-in-up delay-500">
+                <div ref={recordsSectionRef} className="animate-fade-in-up delay-500 scroll-mt-4">
                     <PendingApprovalsWidget
                         key={`pending-${refreshNonce}`}
                         onPopupClosed={refreshAll}
+                        insightFilter={recordsFocus}
+                        onClearInsight={clearRecordsFocus}
                         onSummaryChange={({ pendingCounts: p, nearingSla, breachedSla, exception }) => {
                             if (p) setPendingCounts(p)
                             setSlaSummary({
