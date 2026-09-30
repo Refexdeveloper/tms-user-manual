@@ -19,7 +19,7 @@ function normalizeTypeKey(typeName) {
 }
 
 function formatINR(amount) {
-    return `₹${Math.round(toNumber(amount)).toLocaleString('en-IN')}`
+    return `\u20B9${Math.round(toNumber(amount)).toLocaleString('en-IN')}`
 }
 
 export default function ExpenseTypeCard({
@@ -89,19 +89,16 @@ export default function ExpenseTypeCard({
         return () => clearTimeout(t)
     }, [pct, animDelay])
 
+    const accent = accentVar || iconColor || textColor || '#1E88E5'
+    const ringBorder = borderColor || `color-mix(in srgb, ${accent} 20%, transparent)`
+
     return (
         <div
-            className={`card-lift rounded-2xl overflow-hidden cursor-pointer animate-fade-in-up ${isActive ? 'is-active-card' : ''}`}
+            className={`expense-type-card animate-fade-in-up${isActive ? ' is-active' : ''}`}
             style={{
                 animationDelay: `${animDelay}ms`,
-                border: isActive
-                    ? `2px solid ${accentVar || colorFrom || '#2879b6'}`
-                    : '1px solid rgba(148, 163, 184, 0.18)',
-                boxShadow: isActive
-                    ? `0 0 0 3px color-mix(in srgb, ${accentVar || colorFrom || '#2879b6'} 22%, transparent), 0 14px 34px -8px ${glowColor || 'rgba(15,23,42,0.12)'}`
-                    : `0 4px 18px ${shadow || 'rgba(15,23,42,0.06)'}`,
-                background: '#ffffff',
-                '--type-accent': accentVar || iconColor || textColor,
+                '--type-accent': accent,
+                '--type-border': ringBorder,
             }}
             onClick={onSelect}
             onKeyDown={(e) => {
@@ -113,6 +110,7 @@ export default function ExpenseTypeCard({
             role="button"
             tabIndex={0}
         >
+            <div className="expense-type-card-inner">
             <div
                 className="px-4 py-3.5 sm:px-5 sm:py-4 relative overflow-hidden"
                 style={{
@@ -172,9 +170,9 @@ export default function ExpenseTypeCard({
             >
                 {[
                     { label: 'Total', count: totalCount, amount: totalAmount, color: textColor, bg: bgAccent },
-                    { label: approvedLabel, count: approvedCount, amount: approvedAmount, color: '#166534', bg: 'rgba(22, 101, 52, 0.08)' },
-                    { label: 'Pending', count: pendingCount, amount: pendingAmount, color: '#b45309', bg: 'rgba(180, 83, 9, 0.08)' },
-                    { label: 'Rejected', count: rejectedCount, amount: rejectedAmount, color: '#b91c1c', bg: 'rgba(220, 38, 38, 0.08)' },
+                    { label: approvedLabel, count: approvedCount, amount: approvedAmount, color: '#2e7d32', bg: 'rgba(67, 160, 71, 0.08)' },
+                    { label: 'Pending', count: pendingCount, amount: pendingAmount, color: '#b86200', bg: 'rgba(251, 140, 0, 0.08)' },
+                    { label: 'Rejected', count: rejectedCount, amount: rejectedAmount, color: '#c62828', bg: 'rgba(229, 57, 53, 0.08)' },
                 ].map((s) => (
                     <div key={s.label} className="py-2.5 sm:py-3 text-center px-1">
                         <p className="text-xs sm:text-sm font-bold font-mono tracking-tight leading-tight" style={{ color: s.color }}>
@@ -195,6 +193,7 @@ export default function ExpenseTypeCard({
                         </div>
                     </div>
                 ))}
+            </div>
             </div>
         </div>
     )

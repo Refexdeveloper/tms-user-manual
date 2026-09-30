@@ -766,7 +766,8 @@ button:hover:not(:disabled) i {
         0 0 0 8px color-mix(in srgb, var(--records-accent) 10%, transparent),
         0 18px 40px -18px color-mix(in srgb, var(--records-accent) 35%, transparent) !important;
 }
-.records-panel.is-insight-pulse tbody tr.records-data-row {
+.records-panel.is-insight-pulse tbody tr.records-data-row,
+.records-panel.is-insight-pulse .expense-record-card {
     animation: records-insight-flash 2.4s ease;
 }
 @keyframes records-insight-flash {
@@ -937,6 +938,52 @@ button:hover:not(:disabled) i {
     font-weight: 800;
     letter-spacing: -.015em;
     font-variant-numeric: tabular-nums;
+}
+.expense-record-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    border-radius: 14px;
+    background: #fff;
+    padding: 12px;
+    text-align: left;
+    box-shadow: 0 8px 20px rgba(76, 98, 168, 0.08);
+}
+.expense-record-card-select {
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+.expense-record-card-body {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+}
+.expense-record-card:active,
+.expense-record-card-body:active {
+    background: #f8fbff;
+}
+.expense-record-card.is-selected {
+    background: linear-gradient(100deg, color-mix(in srgb, var(--records-accent) 14%, #fff), color-mix(in srgb, var(--records-accent) 6%, #fff), #fff);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--records-accent) 22%, transparent), 0 8px 20px color-mix(in srgb, var(--records-accent) 11%, transparent);
+}
+.expense-record-card .sla-cell {
+    max-width: none;
+}
+.expense-record-card .workflow-step-badge {
+    max-width: 100%;
+}
+.records-desktop-table {
+    display: block;
+}
+.records-mobile-cards {
+    display: none;
 }
 .travel-type-badge {
     display: inline-flex;
@@ -1324,6 +1371,12 @@ button:hover:not(:disabled) i {
 }
 
 @media (max-width: 860px) {
+    .records-desktop-table {
+        display: none !important;
+    }
+    .records-mobile-cards {
+        display: block;
+    }
     .travel-hero {
         display: none !important;
     }

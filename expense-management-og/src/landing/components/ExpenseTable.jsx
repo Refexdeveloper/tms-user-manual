@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import CurrentStepBadges from './CurrentStepBadges.jsx'
 import SlaCell from './SlaCell.jsx'
+import { ExpenseTypeGlyph } from './ExpenseGlyphs.jsx'
 import { customPendingRequestsIcon } from '../../../../raghul_icons/index.js'
 import {
     expenseHeroIcon,
@@ -9,30 +10,143 @@ import {
     expenseDailyAllowanceIcon,
 } from '../../../../expense_icons/index.js'
 
+function normalizeTypeKey(typeName) {
+    const t = String(typeName || '').trim().toLowerCase().replace(/[_-]+/g, ' ')
+    if (!t) return ''
+    if (t.includes('food')) return 'food'
+    if (t.includes('local') || t.includes('conveyance') || t.includes('taxi') || t.includes('cab')) return 'local'
+    if (t.includes('daily') || t.includes('allowance') || t.includes('per diem') || t.includes('perdiem')) return 'allowance'
+    return ''
+}
+
+function rowMatchesType(expense, typeName) {
+    const key = normalizeTypeKey(typeName)
+    if (!key) return false
+    if (key === 'food') return Boolean(expense?.hasFoodType)
+    if (key === 'local') return Boolean(expense?.hasLocalType)
+    if (key === 'allowance') return Boolean(expense?.hasAllowanceType)
+    const cats = Array.isArray(expense?.categories) ? expense.categories : [expense?.category]
+    return cats.some((c) => normalizeTypeKey(c) === key)
+}
+
 const categoryStyles = {
-    'Daily Allowance': { icon: 'ri-sun-line', colorFrom: '#EE6A31', colorTo: '#F59E21', text: '#EE6A31', bg: 'rgba(238,106,49,0.1)' },
-    'Food Claim': { icon: 'ri-restaurant-2-line', colorFrom: '#139B49', colorTo: '#7dc244', text: '#139B49', bg: 'rgba(19,155,73,0.1)' },
-    'Local Conveyance': { icon: 'ri-taxi-line', colorFrom: '#2879b6', colorTo: '#1D9AD4', text: '#2879b6', bg: 'rgba(40,121,182,0.1)' },
+    'Daily Allowance': { icon: 'ri-sun-line', colorFrom: '#FB8C00', colorTo: '#FFB74D', text: '#FB8C00', bg: 'rgba(251,140,0,0.1)' },
+    'Food Claim': { icon: 'ri-restaurant-2-line', colorFrom: '#43A047', colorTo: '#66BB6A', text: '#43A047', bg: 'rgba(67,160,71,0.1)' },
+    'Local Conveyance': { icon: 'ri-taxi-line', colorFrom: '#1E88E5', colorTo: '#42A5F5', text: '#1E88E5', bg: 'rgba(30,136,229,0.1)' },
 }
 
 const DEFAULT_STYLE = {
     icon: 'ri-file-list-3-line',
-    colorFrom: '#2879b6',
-    colorTo: '#1D9AD4',
-    text: '#2879b6',
-    bg: 'rgba(40,121,182,0.1)',
+    colorFrom: '#1E88E5',
+    colorTo: '#42A5F5',
+    text: '#1E88E5',
+    bg: 'rgba(30,136,229,0.1)',
 }
 
 const TAB_CONFIGS = [
     { key: 'all', label: 'All Claims', short: 'All', icon: expenseHeroIcon, color: '#1E88E5', glow: 'rgba(30,136,229,0.45)' },
-    { key: 'Food Claim', label: 'Food Claim', short: 'Food', icon: expenseFoodClaimIcon, color: '#139B49', glow: 'rgba(19,155,73,0.45)' },
-    { key: 'Local Conveyance', label: 'Local Conveyance', short: 'Local', icon: expenseLocalConveyanceIcon, color: '#2879b6', glow: 'rgba(40,121,182,0.45)' },
-    { key: 'Daily Allowance', label: 'Daily Allowance', short: 'Allowance', icon: expenseDailyAllowanceIcon, color: '#EE6A31', glow: 'rgba(238,106,49,0.45)' },
+    { key: 'Food Claim', label: 'Food Claim', short: 'Food', icon: expenseFoodClaimIcon, color: '#43A047', glow: 'rgba(67,160,71,0.45)' },
+    { key: 'Local Conveyance', label: 'Local Conveyance', short: 'Local', icon: expenseLocalConveyanceIcon, color: '#1E88E5', glow: 'rgba(30,136,229,0.45)' },
+    { key: 'Daily Allowance', label: 'Daily Allowance', short: 'Allowance', icon: expenseDailyAllowanceIcon, color: '#FB8C00', glow: 'rgba(251,140,0,0.45)' },
 ]
 
 function formatINR(amount) {
     const num = typeof amount === 'number' ? amount : Number(String(amount || 0).replace(/,/g, '').replace(/[^\d.-]/g, '')) || 0
-    return `₹${Math.round(num).toLocaleString('en-IN')}`
+    return `\u20B9${Math.round(num).toLocaleString('en-IN')}`
+}
+
+function getExpenseRowView(expense) {
+    const typeLabel = Array.isArray(expense?.categories) && expense.categories.length
+        ? expense.categories[0]
+        : expense?.category
+    const cfg = categoryStyles[typeLabel] || DEFAULT_STYLE
+    const employeeName = expense?.employee || 'User'
+    const initials = employeeName
+        .split(' ')
+        .map((p) => p[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    return { typeLabel, cfg, employeeName, initials }
+}
+
+function MobileField({ label, children, stacked = false }) {
+    if (stacked) {
+        return (
+            <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
+                <span className="mb-1 block text-slate-500">{label}</span>
+                <div className="min-w-0">{children}</div>
+            </div>
+        )
+    }
+    return (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+            <span className="shrink-0 text-slate-500">{label}</span>
+            <div className="min-w-0 truncate text-right font-medium text-slate-800">{children}</div>
+        </div>
+    )
+}
+
+function ExpenseRecordCard({ expense, tableAccent, onOpen }) {
+    const { typeLabel, cfg, employeeName, initials } = getExpenseRowView(expense)
+
+    return (
+        <button
+            type="button"
+            onClick={() => onOpen?.(expense)}
+            className="expense-record-card"
+            style={{ '--type-accent': cfg.colorFrom }}
+        >
+            <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                <div className="min-w-0 flex-1">
+                    <span className="record-id-badge inline-block max-w-full truncate" title={expense.id}>
+                        {expense.id}
+                    </span>
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                        <div className="record-type-icon" style={{ '--type-accent': cfg.colorFrom }}>
+                            <ExpenseTypeGlyph type={typeLabel} />
+                        </div>
+                        <p className="truncate text-sm font-semibold text-slate-800">
+                            {expense.category || '—'}
+                        </p>
+                    </div>
+                </div>
+                <span className="record-amount shrink-0 pt-0.5">{formatINR(expense.amount)}</span>
+            </div>
+
+            <div className="mt-2 grid grid-cols-1 gap-1.5 text-[11px]">
+                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+                    <div
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white shadow-sm"
+                        style={{ background: 'linear-gradient(135deg, #1E88E5, #42A5F5)' }}
+                    >
+                        {initials}
+                    </div>
+                    <div className="min-w-0">
+                        <span className="block text-[10px] uppercase tracking-wide text-slate-400">Requestor</span>
+                        <span className="block truncate font-medium text-slate-700">{employeeName}</span>
+                    </div>
+                </div>
+                <MobileField label="Requested">
+                    {expense.date || '—'}
+                </MobileField>
+                <MobileField label="Current step" stacked>
+                    <CurrentStepBadges
+                        text={expense.currentStep || 'Manager Approval'}
+                        size="sm"
+                        accent={tableAccent}
+                    />
+                </MobileField>
+                <MobileField label="SLA" stacked>
+                    <SlaCell
+                        deadlineAtMs={expense.deadlineAtMs}
+                        deadlineLabel={expense.deadline}
+                        size="sm"
+                    />
+                </MobileField>
+            </div>
+        </button>
+    )
 }
 
 function compareByDeadlineThenLatest(a, b) {
@@ -61,11 +175,12 @@ export default function ExpenseTable({
     setCategoryFilter,
     activeTypeFilter,
     setActiveTypeFilter,
-    dynamicTypeConfig = [],
     expenseRoleCopy,
     expenseList = [],
+    statusFilter = null,
+    insightPulse = false,
+    onClearInsight,
     onRowClick,
-    onEdit,
 }) {
     const [currentPage, setCurrentPage] = useState(1)
     const [slaFilter, setSlaFilter] = useState('all') // 'all' | 'nearing' | 'breached'
@@ -73,7 +188,10 @@ export default function ExpenseTable({
     const dropdownRef = useRef(null)
     const pageSize = 8
 
-    // Close dropdown on click outside
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [statusFilter])
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -89,9 +207,7 @@ export default function ExpenseTable({
         const counts = { all: expenseList.length }
         TAB_CONFIGS.forEach((t) => {
             if (t.key !== 'all') {
-                counts[t.key] = expenseList.filter((e) =>
-                    Array.isArray(e.categories) ? e.categories.includes(t.key) : e.category === t.key
-                ).length
+                counts[t.key] = expenseList.filter((e) => rowMatchesType(e, t.key)).length
             }
         })
         return counts
@@ -117,7 +233,7 @@ export default function ExpenseTable({
             const matchCat =
                 !categoryFilter ||
                 categoryFilter === 'all' ||
-                (Array.isArray(e.categories) ? e.categories.includes(categoryFilter) : e.category === categoryFilter)
+                rowMatchesType(e, categoryFilter)
 
             // SLA filter
             let matchSla = true
@@ -128,9 +244,12 @@ export default function ExpenseTable({
                 matchSla = diff > 0 && diff < 48 * 3600 * 1000
             }
 
-            return matchSearch && matchCat && matchSla
+            // Status filter from KPI cards
+            const matchStatus = !statusFilter || e.status === statusFilter
+
+            return matchSearch && matchCat && matchSla && matchStatus
         })
-    }, [expenseList, searchQuery, categoryFilter, slaFilter])
+    }, [expenseList, searchQuery, categoryFilter, slaFilter, statusFilter])
 
     const sortedRows = useMemo(() => {
         return [...filteredRows].sort(compareByDeadlineThenLatest)
@@ -148,13 +267,14 @@ export default function ExpenseTable({
         setCurrentPage(1)
     }
 
-    const hasActiveFilters = Boolean(searchQuery || (categoryFilter && categoryFilter !== 'all') || slaFilter !== 'all')
+    const hasActiveFilters = Boolean(searchQuery || (categoryFilter && categoryFilter !== 'all') || slaFilter !== 'all' || statusFilter)
 
     const clearAllFilters = () => {
         if (setSearchQuery) setSearchQuery('')
         if (setCategoryFilter) setCategoryFilter('all')
         if (setActiveTypeFilter) setActiveTypeFilter(null)
         setSlaFilter('all')
+        onClearInsight?.()
         setCurrentPage(1)
     }
 
@@ -162,7 +282,7 @@ export default function ExpenseTable({
 
     return (
         <div
-            className="records-panel overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl"
+            className={`records-panel overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_12px_30px_rgba(76,98,168,0.12)] sm:rounded-2xl lg:rounded-3xl${insightPulse ? ' is-insight-pulse' : ''}`}
             style={{ '--records-accent': tableAccent }}
         >
             {/* ─── Header: 3D Icon, Title, and Process Tabs ────────────────────────── */}
@@ -227,7 +347,7 @@ export default function ExpenseTable({
             <div className="p-3.5 sm:p-4 lg:p-5">
                 <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between flex-wrap">
                     {/* Search bar */}
-                    <div className="flex items-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2 sm:py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 flex-1 min-w-[220px]">
+                    <div className="flex items-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2 sm:py-2.5 shadow-sm focus-within:border-[#1E88E5] focus-within:ring-2 focus-within:ring-[#1E88E5]/20 flex-1 min-w-[220px]">
                         <i className="ri-search-line text-base text-slate-400 sm:text-sm" />
                         <input
                             type="text"
@@ -262,7 +382,7 @@ export default function ExpenseTable({
                                 onClick={() => setIsDropdownOpen((prev) => !prev)}
                                 className="custom-dropdown-btn btn-press"
                             >
-                                <i className="ri-filter-3-line text-[#2879b6]" />
+                                <i className="ri-filter-3-line text-[#1E88E5]" />
                                 <span>{activeKey === 'all' ? 'All Types' : activeKey}</span>
                                 <i className={`ri-arrow-down-s-line transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
                             </button>
@@ -279,7 +399,7 @@ export default function ExpenseTable({
                                     >
                                         <i className="ri-list-check text-slate-400" />
                                         <span className="flex-1">All Types</span>
-                                        {activeKey === 'all' && <i className="ri-check-line text-[#2879b6] font-bold" />}
+                                        {activeKey === 'all' && <i className="ri-check-line text-[#1E88E5] font-bold" />}
                                     </button>
                                     {TAB_CONFIGS.filter((t) => t.key !== 'all').map((cfg) => (
                                         <button
@@ -296,7 +416,7 @@ export default function ExpenseTable({
                                                 style={{ background: cfg.color }}
                                             />
                                             <span className="flex-1">{cfg.label}</span>
-                                            {activeKey === cfg.key && <i className="ri-check-line text-[#2879b6] font-bold" />}
+                                            {activeKey === cfg.key && <i className="ri-check-line text-[#1E88E5] font-bold" />}
                                         </button>
                                     ))}
                                 </div>
@@ -341,9 +461,30 @@ export default function ExpenseTable({
                     </div>
                 </div>
 
-                {/* ─── Table ───────────────────────────────────────────────────────── */}
+                {/* Desktop table · mobile cards (same split as ProjectDashboardPage) */}
+                {paginatedRows.length === 0 ? (
+                    <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 px-4 py-12 text-center">
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:h-14 sm:w-14">
+                            <i className="ri-inbox-2-line text-xl text-slate-400 sm:text-2xl" />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-800">No matching expense claims</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Try adjusting your search criteria or clearing filters.
+                        </p>
+                        {hasActiveFilters && (
+                            <button
+                                type="button"
+                                onClick={clearAllFilters}
+                                className="mt-3 text-xs font-bold text-[#1E88E5] hover:underline"
+                            >
+                                Reset all filters
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto border border-slate-200/90 shadow-sm"
+                    className="records-desktop-table overflow-x-auto overflow-y-auto rounded-xl border border-slate-200/90 shadow-sm"
                     style={{ maxHeight: 5 * 52 + 52 }}
                 >
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 980 }}>
@@ -375,37 +516,8 @@ export default function ExpenseTable({
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedRows.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="px-4 py-12 text-center">
-                                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:h-14 sm:w-14">
-                                            <i className="ri-inbox-2-line text-xl text-slate-400 sm:text-2xl" />
-                                        </div>
-                                        <p className="text-sm font-semibold text-slate-800">No matching expense claims</p>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            Try adjusting your search criteria or clearing filters.
-                                        </p>
-                                        {hasActiveFilters && (
-                                            <button
-                                                type="button"
-                                                onClick={clearAllFilters}
-                                                className="mt-3 text-xs font-bold text-[#2879b6] hover:underline"
-                                            >
-                                                Reset all filters
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ) : (
-                                paginatedRows.map((expense, idx) => {
-                                    const cfg = categoryStyles[expense.category] || DEFAULT_STYLE
-                                    const employeeName = expense.employee || 'User'
-                                    const initials = employeeName
-                                        .split(' ')
-                                        .map((p) => p[0])
-                                        .join('')
-                                        .slice(0, 2)
-                                        .toUpperCase()
+                                {paginatedRows.map((expense, idx) => {
+                                    const { typeLabel, cfg, employeeName, initials } = getExpenseRowView(expense)
 
                                     return (
                                         <tr
@@ -435,10 +547,10 @@ export default function ExpenseTable({
                                                         className="record-type-icon"
                                                         style={{ '--type-accent': cfg.colorFrom }}
                                                     >
-                                                        <i className={`${cfg.icon} text-white text-xs`} />
+                                                        <ExpenseTypeGlyph type={typeLabel} />
                                                     </div>
                                                     <span className="record-type-label truncate min-w-0">
-                                                        {expense.category}
+                                                        {expense.category || '—'}
                                                     </span>
                                                 </div>
                                             </td>
@@ -449,7 +561,7 @@ export default function ExpenseTable({
                                                     <div
                                                         className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-white shadow-sm"
                                                         style={{
-                                                            background: 'linear-gradient(135deg, #2879b6, #1D9AD4)',
+                                                            background: 'linear-gradient(135deg, #1E88E5, #42A5F5)',
                                                         }}
                                                     >
                                                         {initials}
@@ -489,11 +601,23 @@ export default function ExpenseTable({
                                             </td>
                                         </tr>
                                     )
-                                })
-                            )}
+                                })}
                         </tbody>
                     </table>
                 </div>
+
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((expense, idx) => (
+                        <ExpenseRecordCard
+                            key={expense.id || idx}
+                            expense={expense}
+                            tableAccent={tableAccent}
+                            onOpen={onRowClick}
+                        />
+                    ))}
+                </div>
+                    </>
+                )}
 
                 {/* ─── Pagination ──────────────────────────────────────────────────── */}
                 {sortedRows.length > 0 && (

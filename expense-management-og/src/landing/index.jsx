@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { kf } from '../sdk/index.js'
 import ExpenseTable from './components/ExpenseTable.jsx'
-import AddExpenseModal from './components/AddExpenseModal.jsx'
 import ExpenseTypeCard from './components/ExpenseTypeCard.jsx'
-import { expenseTypeConfig } from './mocks/expenses.js'
+import { ExpenseHeroArt } from './components/ExpenseGlyphs.jsx'
+import { expenseTypeConfig } from './expenseTypeStyles.js'
 import {
-    expenseHeroIcon,
     expenseSubmittedIcon,
     expensePendingIcon,
     expenseApprovedIcon,
@@ -413,31 +412,99 @@ function dateRawToMs(raw) {
 }
 
 function extractTypeList(rawTypeValue) {
-    if (!rawTypeValue) return []
+    if (rawTypeValue === null || rawTypeValue === undefined || rawTypeValue === '') return []
     if (Array.isArray(rawTypeValue)) {
-        return rawTypeValue
-            .map((v) => toText(v).replace(/^["'\s]+|["'\s]+$/g, '').trim())
-            .filter(Boolean)
+        return rawTypeValue.flatMap((v) => extractTypeList(v)).filter(Boolean)
     }
-    const text = toText(rawTypeValue)
+    if (typeof rawTypeValue === 'object') {
+        const named =
+            rawTypeValue.Name ||
+            rawTypeValue.name ||
+            rawTypeValue.Label ||
+            rawTypeValue.label ||
+            rawTypeValue.Value ||
+            rawTypeValue.value ||
+            rawTypeValue.Text ||
+            rawTypeValue.text
+        if (named) return extractTypeList(named)
+        if (Array.isArray(rawTypeValue.Values) || Array.isArray(rawTypeValue.values)) {
+            return extractTypeList(rawTypeValue.Values || rawTypeValue.values)
+        }
+        return extractTypeList(toText(rawTypeValue))
+    }
+    const text = String(rawTypeValue).trim()
     if (!text) return []
+    if ((text.startsWith('[') && text.endsWith(']')) || (text.startsWith('{') && text.endsWith('}'))) {
+        try {
+            return extractTypeList(JSON.parse(text))
+        } catch {
+            /* fall through and split as text */
+        }
+    }
     return text
-        .split(',')
+        .split(/[,;|\n]+/)
         .map((x) => x.replace(/^["'\s]+|["'\s]+$/g, '').trim())
         .filter(Boolean)
 }
 
 function normalizeTypeKey(typeName) {
-    const t = String(typeName || '').trim().toLowerCase()
+    const t = String(typeName || '').trim().toLowerCase().replace(/[_-]+/g, ' ')
     if (!t) return ''
     if (t.includes('food')) return 'food'
-    if (t.includes('local') || t.includes('conveyance')) return 'local'
-    if (t.includes('daily') || t.includes('allowance')) return 'allowance'
+    if (t.includes('local') || t.includes('conveyance') || t.includes('taxi') || t.includes('cab')) return 'local'
+    if (t.includes('daily') || t.includes('allowance') || t.includes('per diem') || t.includes('perdiem')) return 'allowance'
     return ''
 }
 
-function typeMatchesCategory(rowCategory, cardCategory) {
-    return normalizeTypeKey(rowCategory) === normalizeTypeKey(cardCategory)
+function canonicalTypeName(typeName) {
+    const key = normalizeTypeKey(typeName)
+    if (key === 'food') return 'Food Claim'
+    if (key === 'local') return 'Local Conveyance'
+    if (key === 'allowance') return 'Daily Allowance'
+    return ''
+}
+
+function readTypedAmount(row, currentId, legacyId) {
+    const current = toNumber(row?.[currentId])
+    if (current > 0) return current
+    return toNumber(row?.[legacyId])
+}
+
+function collectCanonicalTypes(row) {
+    const addInto = (target, raw) => {
+        for (const token of extractTypeList(raw)) {
+            const name = canonicalTypeName(token)
+            if (name && !target.includes(name)) target.push(name)
+        }
+    }
+
+    const fromNamed = []
+    addInto(fromNamed, row?.Expense_Type)
+    addInto(fromNamed, row?.Expense_Type_1)
+    addInto(fromNamed, row?.Expense_Category)
+    if (fromNamed.length) return fromNamed
+
+    const fromColumns = []
+    addInto(fromColumns, row?.['Column_QvkPQesvWe'])
+    addInto(fromColumns, row?.['Column_psPlJl58v_'])
+    addInto(fromColumns, row?.['Column_XcXTxxA4-C'])
+    addInto(fromColumns, row?.['Column_H3zuOgPyy9'])
+    if (fromColumns.length) return fromColumns
+
+    const fromScan = []
+    if (row && typeof row === 'object') {
+        for (const [key, val] of Object.entries(row)) {
+            if (!/(expense.?type|expense.?category|claim.?type)/i.test(key)) continue
+            addInto(fromScan, val)
+        }
+    }
+    if (fromScan.length) return fromScan
+
+    const inferred = []
+    if (readTypedAmount(row, 'Column__TAcTPEAKs', 'Column_Ou-RDnYBLe') > 0) inferred.push('Food Claim')
+    if (readTypedAmount(row, 'Column_xZXMgYqgvI', 'Column_MVAKsLQmBE') > 0) inferred.push('Local Conveyance')
+    if (readTypedAmount(row, 'Column_133Ac5B7-c', 'Column_z3v7c3Rof8') > 0) inferred.push('Daily Allowance')
+    return inferred
 }
 
 function rowHasType(row, normalizedKey) {
@@ -691,13 +758,7 @@ function mapSourceRowToExpenseItem(row, rowIndex) {
             row?._status ||
             ''
     )
-    const types = extractTypeList(
-        row?.['Column_QvkPQesvWe'] ??
-            row?.['Column_psPlJl58v_'] ??
-            row?.['Column_XcXTxxA4-C'] ??
-            row?.Expense_Type ??
-            row?.Expense_Category
-    )
+    const types = collectCanonicalTypes(row)
     const amountResolved = resolveAmountByTypes(row, types)
     const amount = resolveClaimTotalAmount(row, amountResolved)
     const normalizedTypeKeys = types.map((t) => normalizeTypeKey(t)).filter(Boolean)
@@ -705,13 +766,20 @@ function mapSourceRowToExpenseItem(row, rowIndex) {
     const hasLocalType = normalizedTypeKeys.includes('local')
     const hasAllowanceType = normalizedTypeKeys.includes('allowance')
 
-    const foodAmountExact = toNumber(row?.['Column__TAcTPEAKs'])
-    const localAmountExact = toNumber(row?.['Column_xZXMgYqgvI'])
-    const allowanceAmountExact = toNumber(row?.['Column_133Ac5B7-c'])
+    const foodAmountExact = readTypedAmount(row, 'Column__TAcTPEAKs', 'Column_Ou-RDnYBLe')
+    const localAmountExact = readTypedAmount(row, 'Column_xZXMgYqgvI', 'Column_MVAKsLQmBE')
+    const allowanceAmountExact = readTypedAmount(row, 'Column_133Ac5B7-c', 'Column_z3v7c3Rof8')
     const strictTypeAmounts = {
         food: hasFoodType ? foodAmountExact : 0,
         local: hasLocalType ? localAmountExact : 0,
         allowance: hasAllowanceType ? allowanceAmountExact : 0,
+    }
+    const typedSum = strictTypeAmounts.food + strictTypeAmounts.local + strictTypeAmounts.allowance
+    const typeCount = [hasFoodType, hasLocalType, hasAllowanceType].filter(Boolean).length
+    if (typedSum <= 0 && amount > 0 && typeCount === 1) {
+        if (hasFoodType) strictTypeAmounts.food = amount
+        if (hasLocalType) strictTypeAmounts.local = amount
+        if (hasAllowanceType) strictTypeAmounts.allowance = amount
     }
 
     const requestorText =
@@ -771,8 +839,8 @@ function mapSourceRowToExpenseItem(row, rowIndex) {
                 row?.['Column_-ELLfNxnxC'] ||
                 row?.['Column_C89QfaMa51']
         ),
-        category: types.join(', ') || toText(row?.['Column_H3zuOgPyy9']) || 'Uncategorized',
-        categories: types.length ? types : [toText(row?.['Column_H3zuOgPyy9']) || 'Uncategorized'],
+        category: types.join(', ') || '—',
+        categories: types,
         description: toText(row?.['Column_rn7J4m2w3z']) || toText(row?.['Column_5Re-T9BNU6']) || 'Expense item',
         amount,
         typeAmounts: strictTypeAmounts,
@@ -859,7 +927,7 @@ function resolveExpenseDashboardRoleCopy(roleName) {
 const EXPENSE_DASHBOARD_SCOPE_VAR = 'expense_dashboard_scope'
 
 function formatINR(amount) {
-    return `₹${Math.round(toNumber(amount)).toLocaleString('en-IN')}`
+    return `\u20B9${Math.round(toNumber(amount)).toLocaleString('en-IN')}`
 }
 
 function useCountUp(endValue, duration = COUNT_UP_MS) {
@@ -897,9 +965,94 @@ function AnimatedInt({ value }) {
     return n.toLocaleString('en-IN')
 }
 
-function AnimatedINR({ value, color }) {
+function AnimatedINR({ value, className, style }) {
     const n = useCountUp(value)
-    return <span style={color ? { color } : undefined}>{formatINR(n)}</span>
+    return (
+        <span className={className} style={style}>
+            {formatINR(n)}
+        </span>
+    )
+}
+
+function MobileWelcomeCard({
+    greetingText,
+    userName,
+    showTeamScopeToggle,
+    expenseDashboardScope,
+    onScopeChange,
+    onRefresh,
+    showCreate,
+    createOpen,
+    onToggleCreate,
+    onCreate,
+}) {
+    return (
+        <section className="mobile-welcome" aria-label="Welcome">
+            <h1 className="mobile-welcome-title">
+                {greetingText}, {userName}
+            </h1>
+            <div className="mobile-welcome-actions">
+                <div className="mobile-welcome-scope" role="group" aria-label="Expense dashboard scope">
+                    {[
+                        { id: 'me', label: 'Me', color: '#1E88E5' },
+                        { id: 'team', label: 'My team', color: '#43A047' },
+                    ].map((opt) => {
+                        const restricted = opt.id === 'team' && !showTeamScopeToggle
+                        return (
+                            <button
+                                key={opt.id}
+                                type="button"
+                                className={`mobile-welcome-scope-btn${expenseDashboardScope === opt.id ? ' is-active' : ''}`}
+                                style={{ '--scope-accent': opt.color }}
+                                onClick={() => {
+                                    if (restricted) return
+                                    onScopeChange(opt.id)
+                                }}
+                                aria-disabled={restricted}
+                                title={restricted ? 'Available for manager roles' : undefined}
+                            >
+                                {opt.label}
+                            </button>
+                        )
+                    })}
+                </div>
+                <div className="mobile-welcome-tools">
+                    <button
+                        type="button"
+                        className="mobile-welcome-icon-btn"
+                        aria-label="Refresh dashboard"
+                        onClick={onRefresh}
+                    >
+                        <i className="ri-refresh-line" aria-hidden="true" />
+                    </button>
+                    {showCreate ? (
+                        <button
+                            type="button"
+                            className={`mobile-welcome-icon-btn${createOpen ? ' is-open' : ''}`}
+                            aria-label={createOpen ? 'Close create menu' : 'Create a new expense'}
+                            aria-expanded={createOpen}
+                            onClick={onToggleCreate}
+                        >
+                            <i className={`ri-add-line${createOpen ? ' is-open' : ''}`} aria-hidden="true" />
+                        </button>
+                    ) : null}
+                </div>
+            </div>
+            {showCreate && createOpen ? (
+                <div className="mobile-welcome-creates" role="menu" aria-label="Create expense">
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className="mobile-welcome-create-item"
+                        style={{ '--satellite-accent': '#1E88E5' }}
+                        onClick={onCreate}
+                    >
+                        New Expense
+                    </button>
+                </div>
+            ) : null}
+        </section>
+    )
 }
 
 function buildSummaryCards(kpi, roleCopy) {
@@ -909,84 +1062,56 @@ function buildSummaryCards(kpi, roleCopy) {
 
     const cards = [
         {
+            key: 'submitted',
             label: 'Total Submitted',
+            hint: 'All expense claims',
             amount: kpi.submittedAmount,
             count: kpi.submittedCount,
             iconSrc: expenseSubmittedIcon,
-            icon: 'ri-money-dollar-circle-line',
-            from: '#EAF4FB',
-            to: '#DDEEF8',
-            border: 'rgba(40, 121, 182, 0.14)',
-            shadow: 'rgba(15, 23, 42, 0.06)',
-            glow: 'rgba(40, 121, 182, 0.2)',
-            accent: '#1a5270',
-            accentRaw: '#2879b6',
-            labelColor: 'rgba(26, 82, 112, 0.72)',
-            countColor: 'rgba(26, 82, 112, 0.48)',
-            iconBg: 'rgba(40, 121, 182, 0.14)',
-            iconColor: '#2879b6',
+            from: '#f0f7ff',
+            border: 'rgba(30, 136, 229, 0.2)',
+            accentRaw: '#1E88E5',
         },
         {
+            key: 'pending',
             label: pendingLabel,
+            hint: 'Requires your attention',
             amount: kpi.pendingAmount,
             count: kpi.pendingCount,
             iconSrc: expensePendingIcon,
-            icon: 'ri-time-line',
-            from: '#FFF5ED',
-            to: '#FFEDE0',
-            border: 'rgba(238, 106, 49, 0.14)',
-            shadow: 'rgba(15, 23, 42, 0.06)',
-            glow: 'rgba(238, 106, 49, 0.2)',
-            accent: '#9a3412',
-            accentRaw: '#c2410c',
-            labelColor: 'rgba(154, 52, 18, 0.72)',
-            countColor: 'rgba(154, 52, 18, 0.48)',
-            iconBg: 'rgba(238, 106, 49, 0.14)',
-            iconColor: '#c2410c',
+            from: '#fffbeb',
+            border: 'rgba(251, 140, 0, 0.22)',
+            accentRaw: '#FB8C00',
         },
         {
+            key: 'approved',
             label: approvedLabel,
+            hint: 'Cleared for payout',
             amount: kpi.approvedAmount,
             count: kpi.approvedCount,
             iconSrc: expenseApprovedIcon,
-            icon: 'ri-checkbox-circle-line',
-            from: '#ECF8F0',
-            to: '#E0F4E8',
-            border: 'rgba(19, 155, 73, 0.14)',
-            shadow: 'rgba(15, 23, 42, 0.06)',
-            glow: 'rgba(19, 155, 73, 0.2)',
-            accent: '#14532d',
-            accentRaw: '#139B49',
-            labelColor: 'rgba(20, 83, 45, 0.72)',
-            countColor: 'rgba(20, 83, 45, 0.48)',
-            iconBg: 'rgba(19, 155, 73, 0.14)',
-            iconColor: '#139B49',
+            from: '#ecf8f0',
+            border: 'rgba(67, 160, 71, 0.2)',
+            accentRaw: '#43A047',
         },
     ]
     if (showRejected) {
         cards.push({
+            key: 'rejected',
             label: 'Rejected',
+            hint: 'Needs resubmission',
             amount: kpi.rejectedAmount,
             count: kpi.rejectedCount,
             iconSrc: expenseRejectedIcon,
-            icon: 'ri-wallet-3-line',
-            from: '#FEF2F2',
-            to: '#FFE4E6',
-            border: 'rgba(220, 38, 38, 0.14)',
-            shadow: 'rgba(15, 23, 42, 0.06)',
-            glow: 'rgba(220, 38, 38, 0.2)',
-            accent: '#991b1b',
-            accentRaw: '#b91c1c',
-            labelColor: 'rgba(153, 27, 27, 0.72)',
-            countColor: 'rgba(153, 27, 27, 0.48)',
-            iconBg: 'rgba(220, 38, 38, 0.12)',
-            iconColor: '#b91c1c',
+            from: '#fef2f2',
+            border: 'rgba(229, 57, 53, 0.2)',
+            accentRaw: '#E53935',
         })
     }
     return cards
 }
 
-/** Map expense type normalized key → custom icon image src from expense_icons */
+/** Map expense type normalized key -> custom icon image src from expense_icons */
 const EXPENSE_TYPE_ICON_MAP = {
     allowance: expenseDailyAllowanceIcon,
     food: expenseFoodClaimIcon,
@@ -994,11 +1119,8 @@ const EXPENSE_TYPE_ICON_MAP = {
 }
 
 export function DefaultLandingComponent() {
-    const [showModal, setShowModal] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [categoryFilter, setCategoryFilter] = useState('all')
-    const [editingExpense, setEditingExpense] = useState(null)
-    const [defaultCategory, setDefaultCategory] = useState('')
     const [activeTypeFilter, setActiveTypeFilter] = useState(null)
     const [kpi, setKpi] = useState({
         submittedCount: 0,
@@ -1012,46 +1134,22 @@ export function DefaultLandingComponent() {
     })
     const [liveExpenseList, setLiveExpenseList] = useState([])
     const [dataError, setDataError] = useState('')
-    const [hoveredSummaryCard, setHoveredSummaryCard] = useState(null)
     /** `me` = personal view (show New Expense); `team` = manager view (hide New Expense). */
     const [expenseDashboardScope, setExpenseDashboardScope] = useState('me')
+    const [recordsFocus, setRecordsFocus] = useState(null)
+    const [refreshNonce, setRefreshNonce] = useState(0)
+    const [createOpen, setCreateOpen] = useState(false)
     const dashboardFetchSeqRef = useRef(0)
-    const dynamicTypeConfig = useMemo(() => {
-        const byType = new Map(expenseTypeConfig.map((x) => [x.type, x]))
-        // Robust matching so icons/colors don't depend on category order.
-        const byNormalizedKey = new Map(
-            expenseTypeConfig.map((x) => [normalizeTypeKey(x.type), x]).filter(([k, _v]) => Boolean(k))
-        )
-        const categories = [
-            ...new Set(
-                liveExpenseList
-                    .flatMap((e) => (Array.isArray(e.categories) ? e.categories : []))
-                    .map((t) => String(t || '').trim())
-                    .filter(Boolean)
-            ),
-        ]
-        if (!categories.length) return expenseTypeConfig.map((cfg) => {
-            const nk = normalizeTypeKey(cfg.type)
-            return { ...cfg, iconSrc: nk ? EXPENSE_TYPE_ICON_MAP[nk] : undefined }
-        })
-        return categories.map((cat, idx) => {
-            const normalizedKey = normalizeTypeKey(cat)
-            const base = byType.get(cat) || (normalizedKey ? byNormalizedKey.get(normalizedKey) : undefined)
-            const fallback = expenseTypeConfig[idx % Math.max(1, expenseTypeConfig.length)]
-            const baseStyle = base || fallback
-            const rowsForType = liveExpenseList.filter((r) => {
-                if (normalizedKey) return rowHasType(r, normalizedKey)
-                return Array.isArray(r.categories) && r.categories.includes(cat)
-            })
-            const totalForType = rowsForType.reduce((s, r) => {
-                if (normalizedKey) return s + toNumber(r?.typeAmounts?.[normalizedKey])
-                return s + toNumber(r.amount)
-            }, 0)
+    const recordsSectionRef = useRef(null)
+    const recordsPulseTimerRef = useRef(null)
+    const typeCards = useMemo(() => {
+        return expenseTypeConfig.map((base) => {
+            const normalizedKey = normalizeTypeKey(base.type)
+            const rowsForType = liveExpenseList.filter((r) => rowHasType(r, normalizedKey))
+            const totalForType = rowsForType.reduce((s, r) => s + toNumber(r?.typeAmounts?.[normalizedKey]), 0)
             return {
-                ...baseStyle,
-                type: cat,
-                iconSrc: normalizedKey ? EXPENSE_TYPE_ICON_MAP[normalizedKey] : undefined,
-                description: `${cat} expenses`,
+                ...base,
+                iconSrc: EXPENSE_TYPE_ICON_MAP[normalizedKey],
                 policyLabel: 'Live',
                 policyNote: 'Live data from workflow APIs',
                 monthlyLimit: Math.max(1, totalForType),
@@ -1096,7 +1194,7 @@ export function DefaultLandingComponent() {
                 let rejectedAmount = 0
                 const mappedRows = []
 
-                // Me → myitems (mis-table My Items). My Team → pending/mytasks (mis-table My Tasks).
+                // Me -> myitems (mis-table My Items). My Team -> pending/mytasks (mis-table My Tasks).
                 const workflowRows = scopeTeam
                     ? await fetchPendingTaskRows(apiGet, apiCall, accountId)
                     : await fetchMyItemsRows(apiGet, apiCall, accountId)
@@ -1188,7 +1286,7 @@ export function DefaultLandingComponent() {
             }
         }
         fetchKpi()
-    }, [expenseDashboardScope])
+    }, [expenseDashboardScope, refreshNonce])
 
     useEffect(() => {
         void safeSetVariable(EXPENSE_DASHBOARD_SCOPE_VAR, expenseDashboardScope)
@@ -1206,7 +1304,47 @@ export function DefaultLandingComponent() {
         const next = activeTypeFilter === type ? null : type
         setActiveTypeFilter(next)
         setCategoryFilter(next ?? 'all')
+        setRecordsFocus(null)
     }
+
+    const scrollToRecords = () => {
+        const align = () => {
+            const el = recordsSectionRef.current
+            if (!el) return
+            const root = typeof document !== 'undefined' ? document.querySelector('.rootDiv') || null : null
+            const offset = 16
+            if (root) {
+                const top = el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - offset
+                root.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+                return
+            }
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+        requestAnimationFrame(() => requestAnimationFrame(align))
+    }
+
+    const handleSummarySelect = (focusKey) => {
+        if (recordsFocus?.key === focusKey) {
+            setRecordsFocus(null)
+            return
+        }
+        const token = Date.now()
+        setRecordsFocus({ key: focusKey, token, pulse: true })
+        scrollToRecords()
+        if (recordsPulseTimerRef.current) clearTimeout(recordsPulseTimerRef.current)
+        recordsPulseTimerRef.current = setTimeout(() => {
+            setRecordsFocus((prev) => (prev?.token === token ? { ...prev, pulse: false } : prev))
+        }, 2400)
+    }
+
+    useEffect(
+        () => () => {
+            if (recordsPulseTimerRef.current) clearTimeout(recordsPulseTimerRef.current)
+        },
+        [],
+    )
+
+    const tableStatusFilter = recordsFocus?.key && recordsFocus.key !== 'submitted' ? recordsFocus.key : null
 
     const userName = (kf && kf.user && kf.user.Name) || ''
     const showTeamScopeToggle = !isEmployeeRole(currentRoleNameResolved)
@@ -1219,13 +1357,28 @@ export function DefaultLandingComponent() {
     })
     const hour = now.getHours()
     const greetingText = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 21 ? 'Good evening' : 'Good night'
-    const monthYearBadge = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
     return (
-        <div className="min-h-screen bg-gray-50 p-3 sm:p-4 lg:p-6">
+        <div className="min-h-screen bg-gray-50 overflow-y-auto">
+            <div className="p-1.5 pb-6 sm:p-4 lg:p-6">
+            <MobileWelcomeCard
+                greetingText={greetingText}
+                userName={userName}
+                showTeamScopeToggle={showTeamScopeToggle}
+                expenseDashboardScope={expenseDashboardScope}
+                onScopeChange={setExpenseDashboardScope}
+                onRefresh={() => setRefreshNonce((n) => n + 1)}
+                showCreate={!showTeamScopeToggle || expenseDashboardScope === 'me'}
+                createOpen={createOpen}
+                onToggleCreate={() => setCreateOpen((open) => !open)}
+                onCreate={() => {
+                    setCreateOpen(false)
+                    openNewExpensePopup()
+                }}
+            />
             {/* Hero Banner — matches approvers-dashboard-v2 design */}
             <div
-                className="expense-hero rounded-xl sm:rounded-2xl mb-4 sm:mb-6 relative animate-fade-in-down border border-white/80"
+                className="expense-hero rounded-xl sm:rounded-2xl mb-2.5 sm:mb-6 relative animate-fade-in-up border border-white/80"
                 style={{ background: 'radial-gradient(circle at 72% 10%, rgba(255,255,255,0.18), transparent 28%), linear-gradient(105deg, #2f87c8 0%, #51a6d8 58%, #7dbfe4 100%)' }}
             >
                 <div className="expense-hero-art" aria-hidden="true">
@@ -1235,7 +1388,7 @@ export function DefaultLandingComponent() {
                     <svg className="expense-hero-coin-trail" viewBox="0 0 250 60">
                         <path d="M4 43 C48 4, 82 52, 121 22 S190 12, 222 32" />
                     </svg>
-                    <img className="expense-hero-icon" src={expenseHeroIcon} alt="" />
+                    <ExpenseHeroArt />
                 </div>
 
                 <div className="expense-hero-content relative z-10">
@@ -1247,7 +1400,7 @@ export function DefaultLandingComponent() {
                             </span>
                             {showTeamScopeToggle && (
                                 <div
-                                    className="expense-hero-scope inline-flex flex-shrink-0 gap-0.5 rounded-xl p-0.5"
+                                    className="expense-hero-scope expense-hero-scope--bar inline-flex flex-shrink-0 gap-0.5 rounded-xl p-0.5"
                                     style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.12)' }}
                                     role="group"
                                     aria-label="Expense dashboard scope"
@@ -1269,7 +1422,10 @@ export function DefaultLandingComponent() {
                                                         : { background: 'transparent', color: 'rgba(255,255,255,0.75)' }
                                                 }
                                             >
-                                                <span className="expense-hero-scope-long">{opt.label}</span>
+                                                <span className="expense-hero-scope-short">{opt.short}</span>
+                                                <span className="expense-hero-scope-long">
+                                                    {opt.id === 'team' ? <>My<br />Team</> : opt.label}
+                                                </span>
                                             </button>
                                         )
                                     })}
@@ -1279,7 +1435,7 @@ export function DefaultLandingComponent() {
                         <div className="expense-hero-copy">
                             <h1 className="expense-hero-title">
                                 <span className="expense-hero-greeting">{greetingText}</span>
-                                <span className="expense-hero-name">{userName}! 👋</span>
+                                <span className="expense-hero-name">{userName}! {'\u{1F44B}'}</span>
                             </h1>
                             <p className="expense-hero-subtitle">
                                 Track, submit and manage all your expense claims
@@ -1292,65 +1448,103 @@ export function DefaultLandingComponent() {
                             <button
                                 type="button"
                                 onClick={() => openNewExpensePopup()}
-                                className="group expense-new-expense-btn flex items-center gap-2 text-white text-sm font-bold px-5 py-2.5 rounded-xl cursor-pointer whitespace-nowrap border-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2879b6]"
+                                className="satellite-action btn-press"
+                                style={{ '--satellite-accent': '#1E88E5' }}
                             >
-                                <div className="w-4 h-4 flex items-center justify-center transition-transform duration-500 ease-out group-hover:rotate-90">
-                                    <i className="ri-add-circle-line text-base transition-transform duration-500 group-hover:scale-110" />
-                                </div>
-                                New Expense
+                                <span className="satellite-action-label">
+                                    <i className="ri-add-line text-sm" />
+                                    New Expense
+                                </span>
                             </button>
+                        )}
+                        {showTeamScopeToggle && (
+                            <div
+                                className="expense-hero-scope expense-hero-scope--aside inline-flex flex-shrink-0 gap-0.5 rounded-xl p-0.5"
+                                style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.12)' }}
+                                role="group"
+                                aria-label="Expense dashboard scope"
+                            >
+                                {[
+                                    { id: 'me', label: 'Me', short: 'Me' },
+                                    { id: 'team', label: 'My Team', short: 'Team' },
+                                ].map((opt) => {
+                                    const active = expenseDashboardScope === opt.id
+                                    return (
+                                        <button
+                                            key={`aside-${opt.id}`}
+                                            type="button"
+                                            onClick={() => setExpenseDashboardScope(opt.id)}
+                                            className="expense-hero-scope-btn"
+                                            style={
+                                                active
+                                                    ? { background: 'rgba(255,255,255,0.95)', color: '#0D1F3C', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }
+                                                    : { background: 'transparent', color: 'rgba(255,255,255,0.75)' }
+                                            }
+                                        >
+                                            <span className="expense-hero-scope-short">{opt.short}</span>
+                                            <span className="expense-hero-scope-long">
+                                                {opt.id === 'team' ? <>My<br />Team</> : opt.label}
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* Summary KPI Cards — approvers-dashboard-v2 style with PNG icons */}
+            {/* Summary KPI Cards — approvers-dashboard-v2 summary-kpi-card */}
             {dataError && (
                 <div className="mb-4 text-xs p-3 rounded-lg" style={{ color: '#B42318', background: '#FFFBFA', border: '1px solid #FDA29B' }}>
                     {dataError}
                 </div>
             )}
             <div
-                className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 ${summaryCardItems.length === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'}`}
+                className={`grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4 sm:mb-6 ${summaryCardItems.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}
             >
                 {summaryCardItems.map((s, idx) => (
                     <div
-                        key={s.label}
-                        className="card-lift rounded-2xl p-4 relative overflow-hidden cursor-pointer animate-fade-in-up shimmer-overlay"
+                        key={s.key}
+                        className={`summary-kpi-card min-w-0 animate-fade-in-up${recordsFocus?.key === s.key ? ' is-active' : ''}`}
                         style={{
+                            '--summary-accent': s.accentRaw,
+                            '--summary-border': s.border,
                             background: `radial-gradient(ellipse 90% 85% at 0% 0%, ${s.from} 0%, transparent 58%), radial-gradient(ellipse 65% 60% at 100% 100%, ${s.from} 0%, transparent 54%), #fff`,
-                            border: `1px solid ${s.border}`,
-                            boxShadow: `0 4px 20px ${s.shadow}`,
                             animationDelay: `${idx * 70}ms`,
-                            '--kpi-accent': s.accentRaw,
+                        }}
+                        onClick={() => handleSummarySelect(s.key)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                handleSummarySelect(s.key)
+                            }
                         }}
                     >
-                        <div className="flex items-center gap-3">
-                            <div className="expense-kpi-icon">
-                                <span className="expense-kpi-icon-glow" />
-                                <span className="expense-kpi-icon-shine" />
+                        <div className="summary-kpi-head">
+                            <div className="summary-status-icon" aria-hidden="true">
+                                <span className="summary-icon-glow" />
+                                <span className="summary-icon-shine" />
                                 <img src={s.iconSrc} alt="" />
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-xs font-semibold mb-0.5" style={{ color: s.labelColor }}>
-                                    {s.label}
-                                </p>
-                                <p className="text-2xl font-black leading-tight">
-                                    <AnimatedINR value={s.amount} color={s.accent} />
-                                </p>
-                                <p className="text-xs mt-0.5" style={{ color: s.countColor }}>
-                                    <span className="font-bold" style={{ color: s.accentRaw }}>
-                                        <AnimatedInt value={s.count} />
-                                    </span>{' '}claims
-                                </p>
+                            <div className="summary-kpi-title">
+                                <p title={s.label}>{s.label}</p>
+                                <span>{s.hint}</span>
+                            </div>
+                            <div className={`summary-total${recordsFocus?.key === s.key ? ' is-active' : ''}`}>
+                                <AnimatedINR value={s.amount} />
+                                <span>
+                                    <AnimatedInt value={s.count} /> claims
+                                </span>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
 
-            {/* Expense Type Cards Section */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
                 <div className="flex items-center justify-between mb-4 animate-fade-in-up delay-200">
                     <div>
                         <h2 className="text-base font-black text-gray-900">Expense Claim Types</h2>
@@ -1363,61 +1557,31 @@ export function DefaultLandingComponent() {
                                 setActiveTypeFilter(null)
                                 setCategoryFilter('all')
                             }}
-                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all hover:scale-105 cursor-pointer whitespace-nowrap"
-                            style={{ background: 'rgba(238,106,49,0.1)', color: '#EE6A31', border: '1px solid rgba(238,106,49,0.2)' }}
+                            className="records-insight-clear btn-press"
+                            style={{ '--records-accent': '#FB8C00' }}
                         >
                             <i className="ri-filter-off-line text-xs" />
-                            Clear filter
+                            {' '}Clear filter
                         </button>
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                    {dynamicTypeConfig.map((cfg, i) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2 sm:gap-3">
+                    {typeCards.map((cfg, i) => (
                         <ExpenseTypeCard
                             key={cfg.type}
                             {...cfg}
                             animDelay={i * 120 + 250}
                             isActive={activeTypeFilter === cfg.type}
                             onSelect={() => handleTypeCardSelect(cfg.type)}
-                            claims={liveExpenseList.filter((e) => {
-                                const key = normalizeTypeKey(cfg.type)
-                                if (key) return rowHasType(e, key)
-                                return (Array.isArray(e.categories) ? e.categories : []).some((c) => typeMatchesCategory(c, cfg.type))
-                            })}
+                            claims={liveExpenseList.filter((e) => rowHasType(e, normalizeTypeKey(cfg.type)))}
                         />
                     ))}
-                    {dynamicTypeConfig.length === 0 &&
-                        <ExpenseTypeCard
-                            type="All Expenses"
-                            approvedLabel={expenseRoleCopy.typeApprovedLabel}
-                            icon="ri-file-list-3-line"
-                            colorFrom="#EAF4FB"
-                            colorTo="#DDEEF8"
-                            borderColor="rgba(40, 121, 182, 0.22)"
-                            shadow="rgba(15, 23, 42, 0.06)"
-                            glowColor="rgba(40, 121, 182, 0.2)"
-                            bgAccent="rgba(40, 121, 182, 0.1)"
-                            textColor="#1a5270"
-                            titleColor="#1a5270"
-                            descColor="rgba(26, 82, 112, 0.62)"
-                            iconBg="rgba(40, 121, 182, 0.14)"
-                            iconColor="#2879b6"
-                            description="All expense records from process report"
-                            policyLabel="Live"
-                            monthlyLimit={Math.max(1, liveExpenseList.reduce((s, r) => s + toNumber(r.amount), 0))}
-                            usedAmount={liveExpenseList.reduce((s, r) => s + toNumber(r.amount), 0)}
-                            policyNote="Live data pulled from process report"
-                            isActive={activeTypeFilter === 'All Expenses'}
-                            onSelect={() => handleTypeCardSelect('All Expenses')}
-                            claims={liveExpenseList}
-                        />
-                    }
                 </div>
             </div>
 
             {/* Records Panel Table — matches approvers-dashboard-v2 / employee-dashboard-v2 */}
-            <div className="animate-fade-in-up delay-400">
+            <div ref={recordsSectionRef} className="animate-fade-in-up delay-400 scroll-mt-4">
                 <ExpenseTable
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
@@ -1425,17 +1589,15 @@ export function DefaultLandingComponent() {
                     setCategoryFilter={setCategoryFilter}
                     activeTypeFilter={activeTypeFilter}
                     setActiveTypeFilter={setActiveTypeFilter}
-                    dynamicTypeConfig={dynamicTypeConfig}
+                    statusFilter={tableStatusFilter}
+                    insightPulse={Boolean(recordsFocus?.pulse)}
+                    onClearInsight={() => setRecordsFocus(null)}
                     expenseRoleCopy={expenseRoleCopy}
                     expenseList={liveExpenseList}
                     onRowClick={(e) => void openExpenseRecordPopup(e)}
-                    onEdit={(e) => {
-                        setEditingExpense(e)
-                        setShowModal(true)
-                    }}
                 />
             </div>
-
+            </div>
         </div>
     )
 }

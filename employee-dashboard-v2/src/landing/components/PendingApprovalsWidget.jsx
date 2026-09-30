@@ -843,6 +843,165 @@ function formatINR(amount) {
     return `₹${Math.round(toNumber(amount)).toLocaleString('en-IN')}`
 }
 
+function MobileField({ label, children, stacked = false }) {
+    if (stacked) {
+        return (
+            <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
+                <span className="mb-1 block text-slate-500">{label}</span>
+                <div className="min-w-0">{children}</div>
+            </div>
+        )
+    }
+    return (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+            <span className="shrink-0 text-slate-500">{label}</span>
+            <div className="min-w-0 truncate text-right font-medium text-slate-800">{children}</div>
+        </div>
+    )
+}
+
+function MobileRecordCard({ title, subtitle, amount, onOpen, children, selected = false, selectSlot = null }) {
+    return (
+        <div className={`expense-record-card${selected ? ' is-selected' : ''}`}>
+            {selectSlot ? <div className="expense-record-card-select">{selectSlot}</div> : null}
+            <button type="button" className="expense-record-card-body" onClick={onOpen}>
+                <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div className="min-w-0 flex-1">
+                        {title}
+                        {subtitle}
+                    </div>
+                    {amount != null ? <span className="record-amount shrink-0 pt-0.5">{amount}</span> : null}
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-1.5 text-[11px]">{children}</div>
+            </button>
+        </div>
+    )
+}
+
+function ExpenseMobileCard({ entry, accent, onOpen, selected, selectSlot }) {
+    const tkey = normalizeExpenseTypeKey(entry.expenseType)
+    const cfg = EXPENSE_TYPE_STYLE[tkey] || EXPENSE_TYPE_STYLE.other
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            amount={formatINR(entry.totalAmount)}
+            title={
+                <span className="record-id-badge inline-block max-w-full truncate" title={entry.expenseId}>
+                    {entry.expenseId}
+                </span>
+            }
+            subtitle={
+                <div className="mt-2 flex min-w-0 items-center gap-2">
+                    <div className="record-type-icon">
+                        <i className={`${cfg.icon} text-white text-sm`} />
+                    </div>
+                    <p className="truncate text-sm font-semibold text-slate-800">{entry.expenseType || '—'}</p>
+                </div>
+            }
+        >
+            <MobileField label="Requestor">{entry.requestorText || '—'}</MobileField>
+            <MobileField label="Requested">{entry.requestDateStr || '—'}</MobileField>
+            <MobileField label="Current step" stacked>
+                <CurrentStepBadges text={entry.currentStep} size="sm" accent={accent} />
+            </MobileField>
+            <MobileField label="SLA" stacked>
+                <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
+            </MobileField>
+        </MobileRecordCard>
+    )
+}
+
+function AdvanceMobileCard({ entry, accent, onOpen, selected, selectSlot }) {
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            amount={formatINR(entry.advanceAmount)}
+            title={<p className="truncate text-sm font-semibold text-slate-800">{entry.requestorText || 'Advance request'}</p>}
+            subtitle={<p className="mt-0.5 truncate text-[10px] text-slate-500">{entry.requestedDateStr || '—'}</p>}
+        >
+            <MobileField label="Link to travel">{entry.linkToTravelText || '—'}</MobileField>
+            <MobileField label="Current step" stacked>
+                <CurrentStepBadges text={entry.currentStep} size="sm" accent={accent} />
+            </MobileField>
+            <MobileField label="SLA" stacked>
+                <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
+            </MobileField>
+        </MobileRecordCard>
+    )
+}
+
+function TravelMobileCard({ entry, accent, onOpen, selected, selectSlot }) {
+    const route = splitTravelRoute(entry)
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            amount={formatINR(entry.bookingAmount)}
+            title={<p className="truncate text-sm font-semibold text-slate-800">{entry.requestorText || 'Travel booking'}</p>}
+            subtitle={
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="travel-type-badge">{entry.tripTypeLabel}</span>
+                    <span className="text-[10px] text-slate-500">{entry.departureDateStr || '—'}</span>
+                </div>
+            }
+        >
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+                <span className="min-w-0 truncate font-semibold text-slate-800">{route.from}</span>
+                <TripRouteIcon tripTypeKey={entry.travelTypeKey} label={entry.tripTypeLabel} />
+                <span className="min-w-0 truncate text-right font-semibold text-slate-800">{route.to}</span>
+            </div>
+            <MobileField label="Current step" stacked>
+                <CurrentStepBadges text={entry.currentStep} size="sm" accent={accent} />
+            </MobileField>
+            <MobileField label="SLA" stacked>
+                <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
+            </MobileField>
+        </MobileRecordCard>
+    )
+}
+
+function GenericMobileCard({ row, cols, onOpen, selected, selectSlot }) {
+    const first = cols[0]
+    const rest = cols.slice(1)
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            title={
+                <p className="truncate text-sm font-semibold text-slate-800">
+                    {first ? toText(row?.[first.Id]) || first.Name : 'Record'}
+                </p>
+            }
+        >
+            {rest.map((c) => (
+                <MobileField key={c.Id} label={c.Name}>
+                    {toText(row?.[c.Id]) || '—'}
+                </MobileField>
+            ))}
+        </MobileRecordCard>
+    )
+}
+
+function DraftSelectBox({ id, checked, onToggle, label }) {
+    return (
+        <input
+            type="checkbox"
+            className="draft-checkbox"
+            aria-label={label}
+            checked={checked}
+            disabled={!id}
+            onClick={(event) => event.stopPropagation()}
+            onChange={() => onToggle(id)}
+        />
+    )
+}
+
 function buildExpenseRowView(row, ids) {
     const expenseId =
         (ids.expenseId ? toText(row[ids.expenseId]).trim() : '') ||
@@ -1394,10 +1553,16 @@ export default function PendingApprovalsWidget({
             let allCols = []
 
             if (scopeKey === 'myItems') {
+                const insightBucketStatuses =
+                    insightFilter?.processKey === tab.key
+                        ? statusesForInsightBucket(insightFilter.bucket)
+                        : null
                 const statuses = (
-                    Array.isArray(insightStatuses) && insightStatuses.length
-                        ? insightStatuses
-                        : [myItemsStatus || 'Draft']
+                    Array.isArray(insightBucketStatuses) && insightBucketStatuses.length
+                        ? insightBucketStatuses
+                        : Array.isArray(insightStatuses) && insightStatuses.length
+                          ? insightStatuses
+                          : [myItemsStatus || 'Draft']
                 ).filter(Boolean)
                 const prefCols = PREFERENCE_COLUMNS?.[tab.key] || []
                 for (const status of statuses) {
@@ -1583,7 +1748,6 @@ export default function PendingApprovalsWidget({
             return
         }
         const nextStatuses = statusesForInsightBucket(insightFilter.bucket)
-        const cardRows = Array.isArray(insightFilter.rows) ? insightFilter.rows : null
         setScopeKey('myItems')
         setActiveKey(insightFilter.processKey)
         setMyItemsStatus(insightFilter.bucket === 'claimed' ? 'Completed' : 'InProgress')
@@ -1591,13 +1755,12 @@ export default function PendingApprovalsWidget({
         setCurrentPage(1)
         setSearchId('')
         setSelectedDraftIds(new Set())
-        if (cardRows) {
-            setRows(cardRows)
-            setError('')
-            setLoading(false)
-            setCounts((prev) => ({ ...prev, [insightFilter.processKey]: cardRows.length }))
+        setError('')
+        setLoading(true)
+        if (Array.isArray(insightFilter.rows)) {
+            setCounts((prev) => ({ ...prev, [insightFilter.processKey]: insightFilter.rows.length }))
         }
-    }, [insightFilter?.token, insightFilter?.processKey, insightFilter?.bucket, insightFilter?.rows])
+    }, [insightFilter?.token, insightFilter?.processKey, insightFilter?.bucket])
 
     const clearCardInsight = () => {
         setInsightStatuses(null)
@@ -1606,21 +1769,6 @@ export default function PendingApprovalsWidget({
 
     useEffect(() => {
         if (!accountId || !countsReady) return
-        const cardRows = Array.isArray(insightFilter?.rows) ? insightFilter.rows : null
-        if (
-            cardRows &&
-            scopeKey === 'myItems' &&
-            insightFilter?.processKey &&
-            activeTab.key === insightFilter.processKey
-        ) {
-            setCurrentPage(1)
-            setSearchId('')
-            setRows(cardRows)
-            setError('')
-            setLoading(false)
-            setCounts((prev) => ({ ...prev, [activeTab.key]: cardRows.length }))
-            return
-        }
         setCurrentPage(1)
         setSearchId('')
         fetchList(activeTab)
@@ -1815,16 +1963,38 @@ export default function PendingApprovalsWidget({
         )
         if (!confirmed) return
 
+        const deleteOptions = { method: 'DELETE', headers: { Accept: 'application/json' } }
+        const assertDeleted = (response) => {
+            const status = Number(response?.status ?? response?.statusCode ?? 0)
+            if (status >= 400 || response?.error || response?.errorCode || response?.Error) {
+                throw new Error(response?.message || response?.error || 'Delete rejected')
+            }
+            return response
+        }
+        // Owners can delete their own drafts without process-admin rights; admin route is the fallback.
+        const deleteDraft = async (id) => {
+            const encodedId = encodeURIComponent(id)
+            try {
+                return assertDeleted(
+                    await kf.api(`/process/2/${accountId}/${activeTab.processId}/${encodedId}`, deleteOptions),
+                )
+            } catch (ownerError) {
+                console.warn('Draft owner delete failed, trying admin delete', id, ownerError)
+                return assertDeleted(
+                    await kf.api(
+                        `/process/2/${accountId}/admin/${activeTab.processId}/${encodedId}`,
+                        deleteOptions,
+                    ),
+                )
+            }
+        }
+
         setDeletingDrafts(true)
         try {
-            const results = await Promise.allSettled(
-                ids.map((id) =>
-                    kf.api(
-                        `/process/2/${accountId}/admin/${activeTab.processId}/${encodeURIComponent(id)}`,
-                        { method: 'DELETE', headers: { Accept: 'application/json' } },
-                    ),
-                ),
-            )
+            const results = await Promise.allSettled(ids.map(deleteDraft))
+            results.forEach((result, index) => {
+                if (result.status === 'rejected') console.error('Draft delete failed', ids[index], result.reason)
+            })
             const successIds = results
                 .map((result, index) => (result.status === 'fulfilled' ? ids[index] : ''))
                 .filter(Boolean)
@@ -1922,7 +2092,7 @@ export default function PendingApprovalsWidget({
                             <h3 className="text-[15px] font-semibold text-slate-900 sm:text-base">My Records</h3>
                             <p className="text-[11px] text-slate-500 sm:text-xs">
                                 {insightFilter?.label
-                                    ? `Showing ${insightFilter.label} · ${activeTab.label} (${Array.isArray(insightFilter.rows) ? insightFilter.rows.length : rows.length})`
+                                    ? `Showing ${insightFilter.label} · ${activeTab.label} (${rows.length})`
                                     : 'Drafts, items, tasks & participated · all processes'}
                             </p>
                         </div>
@@ -2175,8 +2345,9 @@ export default function PendingApprovalsWidget({
                     <p className="mt-1 text-xs text-slate-500">Try a different ID or clear the search.</p>
                 </div>
             ) : activeKey === 'expense' ? (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2289,9 +2460,36 @@ export default function PendingApprovalsWidget({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((entry, idx) => {
+                        const draftId = resolveDraftDeleteId(entry.row)
+                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        return (
+                            <ExpenseMobileCard
+                                key={getRowId(entry.row, idx)}
+                                entry={entry}
+                                accent={activeTab.color}
+                                selected={isSelected}
+                                selectSlot={
+                                    showDraftBulkSelect ? (
+                                        <DraftSelectBox
+                                            id={draftId}
+                                            checked={isSelected}
+                                            onToggle={toggleDraftSelection}
+                                            label={`Select draft ${draftId}`}
+                                        />
+                                    ) : null
+                                }
+                                onOpen={() => handleRowClick(entry.row)}
+                            />
+                        )
+                    })}
+                </div>
+                </>
             ) : activeKey === 'advance' ? (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2400,9 +2598,36 @@ export default function PendingApprovalsWidget({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((entry, idx) => {
+                        const draftId = resolveDraftDeleteId(entry.row)
+                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        return (
+                            <AdvanceMobileCard
+                                key={getRowId(entry.row, idx)}
+                                entry={entry}
+                                accent={activeTab.color}
+                                selected={isSelected}
+                                selectSlot={
+                                    showDraftBulkSelect ? (
+                                        <DraftSelectBox
+                                            id={draftId}
+                                            checked={isSelected}
+                                            onToggle={toggleDraftSelection}
+                                            label={`Select draft ${draftId}`}
+                                        />
+                                    ) : null
+                                }
+                                onOpen={() => handleRowClick(entry.row)}
+                            />
+                        )
+                    })}
+                </div>
+                </>
             ) : activeKey === 'travel' ? (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2535,9 +2760,36 @@ export default function PendingApprovalsWidget({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((entry, idx) => {
+                        const draftId = resolveDraftDeleteId(entry.row)
+                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        return (
+                            <TravelMobileCard
+                                key={getRowId(entry.row, idx)}
+                                entry={entry}
+                                accent={activeTab.color}
+                                selected={isSelected}
+                                selectSlot={
+                                    showDraftBulkSelect ? (
+                                        <DraftSelectBox
+                                            id={draftId}
+                                            checked={isSelected}
+                                            onToggle={toggleDraftSelection}
+                                            label={`Select draft ${draftId}`}
+                                        />
+                                    ) : null
+                                }
+                                onOpen={() => handleRowClick(entry.row)}
+                            />
+                        )
+                    })}
+                </div>
+                </>
             ) : (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2627,6 +2879,32 @@ export default function PendingApprovalsWidget({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((row, idx) => {
+                        const draftId = resolveDraftDeleteId(row)
+                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        return (
+                            <GenericMobileCard
+                                key={getRowId(row, idx)}
+                                row={row}
+                                cols={cols}
+                                selected={isSelected}
+                                selectSlot={
+                                    showDraftBulkSelect ? (
+                                        <DraftSelectBox
+                                            id={draftId}
+                                            checked={isSelected}
+                                            onToggle={toggleDraftSelection}
+                                            label={`Select draft ${draftId}`}
+                                        />
+                                    ) : null
+                                }
+                                onOpen={() => handleRowClick(row)}
+                            />
+                        )
+                    })}
+                </div>
+                </>
             )}
             {!showSkeleton && !error && filteredRows.length > 0 && (
                 <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

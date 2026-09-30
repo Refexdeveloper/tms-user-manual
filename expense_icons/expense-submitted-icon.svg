@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="subSoft" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <filter id="subBadge" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1565c0" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="subDoc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef6ff"/>
+    </linearGradient>
+    <linearGradient id="subBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64b5f6"/>
+      <stop offset="100%" stop-color="#1E88E5"/>
+    </linearGradient>
+    <radialGradient id="subShine" cx="30%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <rect x="62" y="48" width="132" height="168" rx="16" fill="rgba(0,0,0,0.06)" transform="translate(4,10)"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#subDoc)" filter="url(#subSoft)"/>
+  <polygon points="158,38 194,38 194,68" fill="#e3f0fb" opacity="0.9"/>
+  <polygon points="158,38 194,68 158,68" fill="#d0e4f6" opacity="0.55"/>
+  <rect x="82" y="72" width="65" height="7" rx="3.5" fill="#c5dcf3" opacity="0.75"/>
+  <rect x="82" y="90" width="90" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="104" width="76" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="118" width="82" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="132" width="68" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#subShine)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#subBadgeGrad)" filter="url(#subBadge)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#subShine)" opacity="0.4"/>
+  <path d="M160 170 L192 158 L176 182 L172 172 Z" fill="white"/>
+  <path d="M160 170 L192 158 L168 166 Z" fill="white" opacity="0.85"/>
+  <circle cx="168" cy="160" r="10" fill="rgba(255,255,255,0.22)" opacity="0.6"/>
+</svg>

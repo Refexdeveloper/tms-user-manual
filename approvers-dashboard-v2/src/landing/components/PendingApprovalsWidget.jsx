@@ -226,9 +226,81 @@ function readTravelDeparture(row) {
     return (
         readTravelField(row, 'departureDate') ??
         readTravelField(row, 'departureDateLegacy') ??
+        row?.Departure_Date ??
         row?.From_Date ??
+        row?.FS_Departure_Date ??
         row?.Common_from_date
     )
+}
+
+function firstFilled(...values) {
+    for (const v of values) {
+        if (v !== undefined && v !== null && v !== '') return v
+    }
+    return undefined
+}
+
+/** Keys that are empty on `base` but filled on `source` — so empty list cells don't hide item-detail values. */
+function fillMissingFrom(base, source) {
+    const out = {}
+    if (!source || typeof source !== 'object') return out
+    for (const [key, val] of Object.entries(source)) {
+        if (val === undefined || val === null || val === '') continue
+        const cur = base?.[key]
+        if (cur === undefined || cur === null || cur === '') out[key] = val
+    }
+    return out
+}
+
+function readTravelFrom(row) {
+    return firstFilled(
+        readTravelField(row, 'from'),
+        row?.Boarding_from,
+        row?.common_From,
+        row?.Source,
+        row?.Destination_From_International,
+        row?.Boarding,
+    )
+}
+
+function readTravelTo(row) {
+    return firstFilled(
+        readTravelField(row, 'to'),
+        row?.Destination_to_1,
+        row?.common_To,
+        row?.Destination,
+        row?.Destination_To_International,
+        row?.Destination_1,
+    )
+}
+
+function readTravelAmount(row) {
+    return firstFilled(
+        readTravelField(row, 'bookingAmount'),
+        row?.FS_Booking_Amount,
+        row?.FS_Total_Fare_1,
+        row?.FS_Total_Fare,
+        row?.Booking_Amount_1,
+    )
+}
+
+function readTravelTypeRaw(row) {
+    return firstFilled(
+        readTravelField(row, 'travelType'),
+        row?.Trip_Type,
+        row?.OnewayRound_tripNot_applicable,
+        row?.FS_Trip_Type,
+        row?.travel_type,
+        row?.tripType,
+    )
+}
+
+function travelRowNeedsDetail(row) {
+    const from = toText(readTravelFrom(row)).trim()
+    const to = toText(readTravelTo(row)).trim()
+    const amount = toNumber(readTravelAmount(row))
+    const trip = normalizeTravelTypeKey(readTravelTypeRaw(row))
+    return !from || !to || (!amount && !trip)
 }
 
 const CURRENT_STEP_COL_ID = {
@@ -747,6 +819,151 @@ function formatINR(amount) {
     return `₹${Math.round(toNumber(amount)).toLocaleString('en-IN')}`
 }
 
+function MobileField({ label, children, stacked = false }) {
+    if (stacked) {
+        return (
+            <div className="rounded-lg bg-slate-50 px-2.5 py-1.5">
+                <span className="mb-1 block text-slate-500">{label}</span>
+                <div className="min-w-0">{children}</div>
+            </div>
+        )
+    }
+    return (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+            <span className="shrink-0 text-slate-500">{label}</span>
+            <div className="min-w-0 truncate text-right font-medium text-slate-800">{children}</div>
+        </div>
+    )
+}
+
+function MobileRecordCard({ title, subtitle, amount, onOpen, children, selected = false, selectSlot = null }) {
+    return (
+        <div className={`expense-record-card${selected ? ' is-selected' : ''}`}>
+            {selectSlot ? <div className="expense-record-card-select">{selectSlot}</div> : null}
+            <button type="button" className="expense-record-card-body" onClick={onOpen}>
+                <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
+                    <div className="min-w-0 flex-1">
+                        {title}
+                        {subtitle}
+                    </div>
+                    {amount != null ? <span className="record-amount shrink-0 pt-0.5">{amount}</span> : null}
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-1.5 text-[11px]">{children}</div>
+            </button>
+        </div>
+    )
+}
+
+function ExpenseMobileCard({ entry, accent, onOpen, selected, selectSlot }) {
+    const tkey = normalizeExpenseTypeKey(entry.expenseType)
+    const cfg = EXPENSE_TYPE_STYLE[tkey] || EXPENSE_TYPE_STYLE.other
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            amount={formatINR(entry.totalAmount)}
+            title={
+                <span className="record-id-badge inline-block max-w-full truncate" title={entry.expenseId}>
+                    {entry.expenseId}
+                </span>
+            }
+            subtitle={
+                <div className="mt-2 flex min-w-0 items-center gap-2">
+                    <div className="record-type-icon">
+                        <i className={`${cfg.icon} text-white text-sm`} />
+                    </div>
+                    <p className="truncate text-sm font-semibold text-slate-800">{entry.expenseType || '—'}</p>
+                </div>
+            }
+        >
+            <MobileField label="Requestor">{entry.requestorText || '—'}</MobileField>
+            <MobileField label="Requested">{entry.requestDateStr || '—'}</MobileField>
+            <MobileField label="Current step" stacked>
+                <CurrentStepBadges text={entry.currentStep} size="sm" accent={accent} />
+            </MobileField>
+            <MobileField label="SLA" stacked>
+                <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
+            </MobileField>
+        </MobileRecordCard>
+    )
+}
+
+function AdvanceMobileCard({ entry, accent, onOpen, selected, selectSlot }) {
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            amount={formatINR(entry.advanceAmount)}
+            title={<p className="truncate text-sm font-semibold text-slate-800">{entry.requestorText || 'Advance request'}</p>}
+            subtitle={<p className="mt-0.5 truncate text-[10px] text-slate-500">{entry.requestedDateStr || '—'}</p>}
+        >
+            <MobileField label="Link to travel">{entry.linkToTravelText || '—'}</MobileField>
+            <MobileField label="Current step" stacked>
+                <CurrentStepBadges text={entry.currentStep} size="sm" accent={accent} />
+            </MobileField>
+            <MobileField label="SLA" stacked>
+                <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
+            </MobileField>
+        </MobileRecordCard>
+    )
+}
+
+function TravelMobileCard({ entry, accent, onOpen, selected, selectSlot }) {
+    const route = splitTravelRoute(entry)
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            amount={formatINR(entry.bookingAmount)}
+            title={<p className="truncate text-sm font-semibold text-slate-800">{entry.requestorText || 'Travel booking'}</p>}
+            subtitle={
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="travel-type-badge">{entry.tripTypeLabel}</span>
+                    <span className="text-[10px] text-slate-500">{entry.departureDateStr || '—'}</span>
+                </div>
+            }
+        >
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+                <span className="min-w-0 truncate font-semibold text-slate-800">{route.from}</span>
+                <TripRouteIcon tripTypeKey={entry.travelTypeKey} label={entry.tripTypeLabel} />
+                <span className="min-w-0 truncate text-right font-semibold text-slate-800">{route.to}</span>
+            </div>
+            <MobileField label="Current step" stacked>
+                <CurrentStepBadges text={entry.currentStep} size="sm" accent={accent} />
+            </MobileField>
+            <MobileField label="SLA" stacked>
+                <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
+            </MobileField>
+        </MobileRecordCard>
+    )
+}
+
+function GenericMobileCard({ row, cols, onOpen, selected, selectSlot }) {
+    const first = cols[0]
+    const rest = cols.slice(1)
+    return (
+        <MobileRecordCard
+            selected={selected}
+            selectSlot={selectSlot}
+            onOpen={onOpen}
+            title={
+                <p className="truncate text-sm font-semibold text-slate-800">
+                    {first ? toText(row?.[first.Id]) || first.Name : 'Record'}
+                </p>
+            }
+        >
+            {rest.map((c) => (
+                <MobileField key={c.Id} label={c.Name}>
+                    {toText(row?.[c.Id]) || '—'}
+                </MobileField>
+            ))}
+        </MobileRecordCard>
+    )
+}
+
 /** Fetch All_Items_MK_A00 map by instance id — same report employee dashboard uses for Expense Type + SLA. */
 async function fetchExpenseAllItemsReportMap(accountId) {
     const map = new Map()
@@ -777,6 +994,10 @@ function enrichExpensePendingRowWithReport(pendingRow, reportRow) {
     }
     if (reportRow[EXPENSE_REPORT_FIELD_IDS.slaDeadline] != null && reportRow[EXPENSE_REPORT_FIELD_IDS.slaDeadline] !== '') {
         next[EXPENSE_REPORT_FIELD_IDS.slaDeadline] = reportRow[EXPENSE_REPORT_FIELD_IDS.slaDeadline]
+    }
+    const excKey = EXCEPTION_FIELD_ID.expense
+    if (reportRow[excKey] != null && reportRow[excKey] !== '') {
+        next[excKey] = reportRow[excKey]
     }
     // Fill other report columns when pending is missing them.
     for (const key of [
@@ -967,6 +1188,17 @@ async function fetchTravelAllItemsReportMap(accountId) {
     return map
 }
 
+/** GET single process item — fills fields preference/report still miss */
+async function fetchTravelItemDetail(accountId, instanceId, activityInstanceId) {
+    if (!accountId || !instanceId) return null
+    const base = `/process/2/${accountId}/Travel_Management_A02/${instanceId}`
+    if (activityInstanceId) {
+        const withAct = await safeApi(`${base}/${activityInstanceId}?_application_id=${APP_ID}`)
+        if (withAct && typeof withAct === 'object') return withAct
+    }
+    return safeApi(`${base}?_application_id=${APP_ID}`)
+}
+
 /** Copy travel report columns onto pending rows (Trip Type, Departure_Date, MC route/amount). */
 function enrichTravelPendingRowWithReport(pendingRow, reportRow) {
     if (!reportRow || typeof reportRow !== 'object') return pendingRow
@@ -1068,9 +1300,7 @@ function buildTravelRowView(row) {
     const requestId =
         toText(readTravelField(row, 'requestId')).trim() || toText(row?._name || row?.Name).trim() || '—'
 
-    const travelTypeKey = normalizeTravelTypeKey(
-        readTravelField(row, 'travelType') ?? row?.Travel_Type ?? row?.travel_type ?? row?.tripType,
-    )
+    const travelTypeKey = normalizeTravelTypeKey(readTravelTypeRaw(row))
     const isMultiCity = travelTypeKey === 'multiCity'
     const tripTypeLabel = travelTypeLabel(travelTypeKey)
 
@@ -1081,19 +1311,19 @@ function buildTravelRowView(row) {
         readTravelField(row, 'mcRouteSummary') ?? row?.MC_Route_Summary ?? row?.mc_route_summary,
     ).trim()
     const fromText = isMultiCity
-        ? routeSummary || toText(readTravelField(row, 'from')).trim() || '—'
-        : toText(readTravelField(row, 'from')).trim() || '—'
-    const toTextValue = isMultiCity ? '' : toText(readTravelField(row, 'to')).trim() || '—'
+        ? routeSummary || toText(readTravelFrom(row)).trim() || '—'
+        : toText(readTravelFrom(row)).trim() || '—'
+    const toTextValue = isMultiCity ? '' : toText(readTravelTo(row)).trim() || '—'
 
     const bookingAmount = isMultiCity
         ? toNumber(
-              readTravelField(row, 'mcBookingAmount') ??
-                  row?.MC_Total_Booking_Amount ??
-                  row?.mc_total_booking_amount ??
-                  readTravelField(row, 'bookingAmount') ??
-                  row?.FS_Booking_Amount,
+              firstFilled(
+                  readTravelField(row, 'mcBookingAmount'),
+                  row?.mc_total_booking_amount,
+                  readTravelAmount(row),
+              ),
           )
-        : toNumber(readTravelField(row, 'bookingAmount') ?? row?.FS_Booking_Amount)
+        : toNumber(readTravelAmount(row))
 
     const requestorText = toText(readTravelField(row, 'requestor')).trim()
     const currentStep = extractCurrentStepText(row, TRAVEL_FIELD_IDS.currentStep)
@@ -1438,13 +1668,13 @@ function PendingApprovalsWidgetInner({
                             if (!isRowAssignedToMeOrMyRoles(r, rolesLower)) continue
                             nextId.pending += 1
 
-                            const excId = EXCEPTION_FIELD_ID[t.key]
-                            if (excId && isYesLike(r?.[excId])) nextId.exception += 1
-
                             const rowForSla =
                                 t.key === 'expense' && iId && expenseReportMap?.get(iId)
                                     ? enrichExpensePendingRowWithReport(r, expenseReportMap.get(iId))
                                     : r
+
+                            const excId = EXCEPTION_FIELD_ID[t.key]
+                            if (excId && isYesLike(rowForSla?.[excId])) nextId.exception += 1
                             const slaRawForRow =
                                 t.key === 'expense'
                                     ? extractSlaDeadlineRaw(rowForSla, EXPENSE_REPORT_FIELD_IDS.slaDeadline, [
@@ -1594,12 +1824,35 @@ function PendingApprovalsWidgetInner({
             } else if (tab.key === 'travel' && allRows.length) {
                 const reportMap = await fetchTravelAllItemsReportMap(accountId)
                 if (seq !== fetchSeqRef.current) return
-                setRows(
-                    allRows.map((row) => {
-                        const id = String(row?._id || '').trim()
-                        return enrichTravelPendingRowWithReport(row, id ? reportMap.get(id) : null)
-                    }),
-                )
+                const enriched = allRows.map((row) => {
+                    const id = String(row?._id || '').trim()
+                    return enrichTravelPendingRowWithReport(row, id ? reportMap.get(id) : null)
+                })
+
+                // Cap per-item GETs so a large queue doesn't stall the table.
+                const needDetail = enriched
+                    .map((row, idx) => ({ row, idx }))
+                    .filter(({ row }) => travelRowNeedsDetail(row))
+                    .slice(0, 25)
+                if (needDetail.length) {
+                    await Promise.all(
+                        needDetail.map(async ({ row, idx }) => {
+                            const instanceId = String(row?._id || '').trim()
+                            const activityId = String(
+                                row?._activity_instance_id || row?._context_activity_instance_id || '',
+                            ).trim()
+                            const detail = await fetchTravelItemDetail(accountId, instanceId, activityId)
+                            if (detail && typeof detail === 'object') {
+                                enriched[idx] = enrichTravelPendingRowWithReport(
+                                    { ...detail, ...row, ...fillMissingFrom(row, detail) },
+                                    reportMap.get(instanceId),
+                                )
+                            }
+                        }),
+                    )
+                    if (seq !== fetchSeqRef.current) return
+                }
+                setRows(enriched)
             } else {
                 setRows(allRows)
             }
@@ -1965,8 +2218,9 @@ function PendingApprovalsWidgetInner({
                     <p className="mt-1 text-xs text-slate-500">Try a different ID or clear the search.</p>
                 </div>
             ) : activeKey === 'expense' ? (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2051,9 +2305,21 @@ function PendingApprovalsWidgetInner({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((entry, idx) => (
+                        <ExpenseMobileCard
+                            key={getRowId(entry.row, idx)}
+                            entry={entry}
+                            accent={tableAccent}
+                            onOpen={() => handleRowClick(entry.row)}
+                        />
+                    ))}
+                </div>
+                </>
             ) : activeKey === 'advance' ? (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2131,9 +2397,21 @@ function PendingApprovalsWidgetInner({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((entry, idx) => (
+                        <AdvanceMobileCard
+                            key={getRowId(entry.row, idx)}
+                            entry={entry}
+                            accent={tableAccent}
+                            onOpen={() => handleRowClick(entry.row)}
+                        />
+                    ))}
+                </div>
+                </>
             ) : activeKey === 'travel' ? (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2236,9 +2514,21 @@ function PendingApprovalsWidgetInner({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((entry, idx) => (
+                        <TravelMobileCard
+                            key={getRowId(entry.row, idx)}
+                            entry={entry}
+                            accent={tableAccent}
+                            onOpen={() => handleRowClick(entry.row)}
+                        />
+                    ))}
+                </div>
+                </>
             ) : (
+                <>
                 <div
-                    className="rounded-xl overflow-x-auto overflow-y-auto"
+                    className="records-desktop-table rounded-xl overflow-x-auto overflow-y-auto"
                     style={{
                         border: '1px solid rgba(226, 232, 240, 0.9)',
                         maxHeight: 5 * 52 + 44,
@@ -2291,6 +2581,17 @@ function PendingApprovalsWidgetInner({
                         </tbody>
                     </table>
                 </div>
+                <div className="records-mobile-cards space-y-2.5">
+                    {paginatedRows.map((row, idx) => (
+                        <GenericMobileCard
+                            key={getRowId(row, idx)}
+                            row={row}
+                            cols={cols}
+                            onOpen={() => handleRowClick(row)}
+                        />
+                    ))}
+                </div>
+                </>
             )}
             {!showSkeleton && !error && filteredRows.length > 0 && (
                 <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

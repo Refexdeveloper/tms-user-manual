@@ -34,7 +34,7 @@ function stepVisual(label) {
     return { process: true }
 }
 
-export default function CurrentStepBadges({ text, size = 'sm', accent = '#2879b6' }) {
+export default function CurrentStepBadges({ text, size = 'sm', accent = '#1E88E5' }) {
     const parts = parseStepParts(text)
     const pad = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1'
     const textClass = size === 'sm' ? 'text-[11px]' : 'text-xs'

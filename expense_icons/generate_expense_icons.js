@@ -10,6 +10,162 @@ const path = require('path');
 // ─── SVG Icon Definitions ─────────────────────────────────────────────────────
 
 const ICONS = {
+    // Hero / All Claims - blue receipt with rupee badge
+    expenseHeroIcon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="heroSoft" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <filter id="heroBadge" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1565c0" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="heroDoc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef6ff"/>
+    </linearGradient>
+    <linearGradient id="heroBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64b5f6"/>
+      <stop offset="100%" stop-color="#1E88E5"/>
+    </linearGradient>
+    <radialGradient id="heroShine" cx="30%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <rect x="62" y="48" width="132" height="168" rx="16" fill="rgba(0,0,0,0.06)" transform="translate(4,10)"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#heroDoc)" filter="url(#heroSoft)"/>
+  <polygon points="158,38 194,38 194,68" fill="#e3f0fb" opacity="0.9"/>
+  <polygon points="158,38 194,68 158,68" fill="#d0e4f6" opacity="0.55"/>
+  <rect x="82" y="72" width="65" height="7" rx="3.5" fill="#c5dcf3" opacity="0.75"/>
+  <rect x="82" y="90" width="90" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="104" width="76" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="118" width="82" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="132" width="68" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#heroShine)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#heroBadgeGrad)" filter="url(#heroBadge)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#heroShine)" opacity="0.4"/>
+  <path d="M164 158 H188 M164 167 H184 M176 158 V186" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <path d="M168 176 Q176 188 186 176" fill="none" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="168" cy="160" r="10" fill="rgba(255,255,255,0.22)" opacity="0.6"/>
+</svg>`,
+
+    // Submitted - blue document with send badge
+    expenseSubmittedIcon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="subSoft" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <filter id="subBadge" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1565c0" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="subDoc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef6ff"/>
+    </linearGradient>
+    <linearGradient id="subBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64b5f6"/>
+      <stop offset="100%" stop-color="#1E88E5"/>
+    </linearGradient>
+    <radialGradient id="subShine" cx="30%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <rect x="62" y="48" width="132" height="168" rx="16" fill="rgba(0,0,0,0.06)" transform="translate(4,10)"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#subDoc)" filter="url(#subSoft)"/>
+  <polygon points="158,38 194,38 194,68" fill="#e3f0fb" opacity="0.9"/>
+  <polygon points="158,38 194,68 158,68" fill="#d0e4f6" opacity="0.55"/>
+  <rect x="82" y="72" width="65" height="7" rx="3.5" fill="#c5dcf3" opacity="0.75"/>
+  <rect x="82" y="90" width="90" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="104" width="76" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="118" width="82" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="82" y="132" width="68" height="5" rx="2.5" fill="#d7e8f8" opacity="0.65"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#subShine)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#subBadgeGrad)" filter="url(#subBadge)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#subShine)" opacity="0.4"/>
+  <path d="M160 170 L192 158 L176 182 L172 172 Z" fill="white"/>
+  <path d="M160 170 L192 158 L168 166 Z" fill="white" opacity="0.85"/>
+  <circle cx="168" cy="160" r="10" fill="rgba(255,255,255,0.22)" opacity="0.6"/>
+</svg>`,
+
+    // Pending - amber document with clock badge
+    expensePendingIcon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="pendSoft" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <filter id="pendBadge" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#e65100" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="pendDoc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fff8ed"/>
+    </linearGradient>
+    <linearGradient id="pendBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffcc80"/>
+      <stop offset="100%" stop-color="#FB8C00"/>
+    </linearGradient>
+    <radialGradient id="pendShine" cx="30%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <rect x="62" y="48" width="132" height="168" rx="16" fill="rgba(0,0,0,0.06)" transform="translate(4,10)"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#pendDoc)" filter="url(#pendSoft)"/>
+  <polygon points="158,38 194,38 194,68" fill="#f8ead4" opacity="0.9"/>
+  <polygon points="158,38 194,68 158,68" fill="#f0dcc0" opacity="0.55"/>
+  <rect x="82" y="72" width="65" height="7" rx="3.5" fill="#f0d4a8" opacity="0.75"/>
+  <rect x="82" y="90" width="90" height="5" rx="2.5" fill="#f5e4c4" opacity="0.65"/>
+  <rect x="82" y="104" width="76" height="5" rx="2.5" fill="#f5e4c4" opacity="0.65"/>
+  <rect x="82" y="118" width="82" height="5" rx="2.5" fill="#f5e4c4" opacity="0.65"/>
+  <rect x="82" y="132" width="68" height="5" rx="2.5" fill="#f5e4c4" opacity="0.65"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#pendShine)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#pendBadgeGrad)" filter="url(#pendBadge)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#pendShine)" opacity="0.4"/>
+  <circle cx="176" cy="170" r="16" fill="none" stroke="white" stroke-width="4"/>
+  <line x1="176" y1="170" x2="176" y2="160" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <line x1="176" y1="170" x2="186" y2="176" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="168" cy="160" r="10" fill="rgba(255,255,255,0.22)" opacity="0.6"/>
+</svg>`,
+
+    // Approved - green document with check badge
+    expenseApprovedIcon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="apprSoft" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <filter id="apprBadge" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1b5e20" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="apprDoc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ecf8f0"/>
+    </linearGradient>
+    <linearGradient id="apprBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#81c784"/>
+      <stop offset="100%" stop-color="#43A047"/>
+    </linearGradient>
+    <radialGradient id="apprShine" cx="30%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <rect x="62" y="48" width="132" height="168" rx="16" fill="rgba(0,0,0,0.06)" transform="translate(4,10)"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#apprDoc)" filter="url(#apprSoft)"/>
+  <polygon points="158,38 194,38 194,68" fill="#dceee0" opacity="0.9"/>
+  <polygon points="158,38 194,68 158,68" fill="#c8e0cc" opacity="0.55"/>
+  <rect x="82" y="72" width="65" height="7" rx="3.5" fill="#c5e0c8" opacity="0.75"/>
+  <rect x="82" y="90" width="90" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="82" y="104" width="76" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="82" y="118" width="82" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="82" y="132" width="68" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#apprShine)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#apprBadgeGrad)" filter="url(#apprBadge)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#apprShine)" opacity="0.4"/>
+  <path d="M162 171 L172 181 L192 157" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="168" cy="160" r="10" fill="rgba(255,255,255,0.22)" opacity="0.6"/>
+</svg>`,
+
     // Rejected icon - red X on document
     expenseRejectedIcon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <defs>
@@ -257,12 +413,6 @@ const ICONS = {
 </svg>`,
 };
 
-// ─── Helper: convert image file to base64 data URI ────────────────────────────
-function fileToDataUri(filePath, mimeType = 'image/jpeg') {
-    const data = fs.readFileSync(filePath);
-    return `data:${mimeType};base64,${data.toString('base64')}`;
-}
-
 // ─── Helper: convert SVG string to base64 data URI ────────────────────────────
 function svgToDataUri(svgString) {
     const b64 = Buffer.from(svgString, 'utf8').toString('base64');
@@ -278,31 +428,11 @@ for (const [name, svg] of Object.entries(ICONS)) {
 }
 
 // ─── Build index.js ──────────────────────────────────────────────────────────
-const artifactsBase = 'C:\\Users\\Raghul JE\\.gemini\\antigravity-ide\\brain\\ba5e516a-b402-4618-a9d5-33cd51107656';
-const pngIcons = [
-    { varName: 'expenseHeroIcon', file: path.join(artifactsBase, 'expense_hero_icon_1790595050127.jpg') },
-    { varName: 'expenseSubmittedIcon', file: path.join(artifactsBase, 'expense_submitted_icon_1790595065032.jpg') },
-    { varName: 'expensePendingIcon', file: path.join(artifactsBase, 'expense_pending_icon_1790595080274.jpg') },
-    { varName: 'expenseApprovedIcon', file: path.join(artifactsBase, 'expense_approved_icon_1790595093710.jpg') },
-];
-
 let indexContent = `// expense_icons/index.js
 // Auto-generated — DO NOT EDIT manually
-// Icons for the Expense Management Dashboard (expense-management-og)
-// PNG icons: 3D claymorphism style matching approvers-dashboard-v2
-// SVG icons: vector art for expense categories
+// Compact SVG icons for expense-management-og (Kissflow zip cap is 1MB)
 
 `;
-
-for (const { varName, file } of pngIcons) {
-    try {
-        const dataUri = fileToDataUri(file, 'image/jpeg');
-        indexContent += `export const ${varName} = '${dataUri}';\n\n`;
-        console.log(`Encoded PNG: ${varName}`);
-    } catch (e) {
-        console.error(`Failed to encode ${varName}: ${e.message}`);
-    }
-}
 
 for (const [varName, svg] of Object.entries(ICONS)) {
     const dataUri = svgToDataUri(svg);

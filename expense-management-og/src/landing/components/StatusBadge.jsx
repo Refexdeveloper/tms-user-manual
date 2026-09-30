@@ -1,23 +1,23 @@
 const statusConfig = {
     pending: {
         label: 'Pending',
-        bg: 'rgba(245,158,33,0.12)',
-        color: '#a86a00',
-        dot: '#F59E21',
+        bg: 'rgba(251,140,0,0.12)',
+        color: '#b86200',
+        dot: '#FB8C00',
         icon: 'ri-time-line',
     },
     approved: {
         label: 'Approved',
-        bg: 'rgba(19,155,73,0.1)',
-        color: '#139B49',
-        dot: '#7dc244',
+        bg: 'rgba(67,160,71,0.1)',
+        color: '#2e7d32',
+        dot: '#43A047',
         icon: 'ri-checkbox-circle-line',
     },
     rejected: {
         label: 'Rejected',
-        bg: 'rgba(238,106,49,0.1)',
-        color: '#b84f1a',
-        dot: '#ee6a31',
+        bg: 'rgba(229,57,53,0.1)',
+        color: '#c62828',
+        dot: '#E53935',
         icon: 'ri-close-circle-line',
     },
 }

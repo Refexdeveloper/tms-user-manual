@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <filter id="apprSoft" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="rgba(0,0,0,0.15)" flood-opacity="1"/>
+    </filter>
+    <filter id="apprBadge" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1b5e20" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="apprDoc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ecf8f0"/>
+    </linearGradient>
+    <linearGradient id="apprBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#81c784"/>
+      <stop offset="100%" stop-color="#43A047"/>
+    </linearGradient>
+    <radialGradient id="apprShine" cx="30%" cy="22%" r="55%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.5)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <rect x="62" y="48" width="132" height="168" rx="16" fill="rgba(0,0,0,0.06)" transform="translate(4,10)"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#apprDoc)" filter="url(#apprSoft)"/>
+  <polygon points="158,38 194,38 194,68" fill="#dceee0" opacity="0.9"/>
+  <polygon points="158,38 194,68 158,68" fill="#c8e0cc" opacity="0.55"/>
+  <rect x="82" y="72" width="65" height="7" rx="3.5" fill="#c5e0c8" opacity="0.75"/>
+  <rect x="82" y="90" width="90" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="82" y="104" width="76" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="82" y="118" width="82" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="82" y="132" width="68" height="5" rx="2.5" fill="#d5ead8" opacity="0.65"/>
+  <rect x="62" y="38" width="132" height="170" rx="16" fill="url(#apprShine)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#apprBadgeGrad)" filter="url(#apprBadge)"/>
+  <circle cx="176" cy="170" r="36" fill="url(#apprShine)" opacity="0.4"/>
+  <path d="M162 171 L172 181 L192 157" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="168" cy="160" r="10" fill="rgba(255,255,255,0.22)" opacity="0.6"/>
+</svg>
