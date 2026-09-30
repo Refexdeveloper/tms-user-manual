@@ -1,0 +1,15 @@
+---
+description: Refex TMS monorepo — pick the right package and keep Kissflow secrets off the client
+alwaysApply: true
+---
+
+This workspace is a monorepo of independent apps. There is no root package.json.
+
+Edit only the package that matches the request:
+- `refex-tms` — standalone React + Express TMS
+- `employee-dashboard-v2` / `approvers-dashboard-v2` — Kissflow pages
+- `refex-tms-new-booking-kf-form` — Kissflow Form (may use kf.context.updateField)
+- `refex-tms-travel-booking-kf-component` / `refex-tms-flightsearch` — form fields; write with actions.updateValue only; never kf.context.updateField; never window/document/bare fetch
+
+Kissflow is the workflow backend. Never commit or embed Kissflow access keys in frontend code.
+Follow existing AGENTS.md files inside the form-field packages.
