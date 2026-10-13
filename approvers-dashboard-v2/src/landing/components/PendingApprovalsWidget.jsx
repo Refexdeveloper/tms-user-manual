@@ -2,6 +2,9 @@ import { Component, useEffect, useMemo, useRef, useState } from 'react'
 import { kf } from '../../sdk/index.js'
 import CurrentStepBadges from './CurrentStepBadges.jsx'
 import SlaCell from './SlaCell.jsx'
+import { getEmptyPeriodState, requestedDateInPeriod } from './RecordsPeriodPicker.jsx'
+import RecordsExportMenu from './RecordsExportMenu.jsx'
+import { buildProcessCsv, downloadRecordsCsv } from '../../lib/exportRecordsCsv.js'
 import {
     customPendingRequestsIcon,
     customTravelBookingIcon,
@@ -716,6 +719,25 @@ function dateRawToMs(raw) {
     return Number.isNaN(d.getTime()) ? null : d.getTime()
 }
 
+/** Expense/Advance Requested Date; Travel Booking uses created-at as the request date. */
+function readRequestedAtMs(row, tabKey) {
+    if (tabKey === 'expense') {
+        return (
+            dateRawToMs(row?.[EXPENSE_PENDING_FIELD_IDS.requestDate]) ??
+            dateRawToMs(row?.[EXPENSE_REPORT_FIELD_IDS.requestDate]) ??
+            dateRawToMs(row?._created_at)
+        )
+    }
+    if (tabKey === 'advance') {
+        return (
+            dateRawToMs(row?.[ADVANCE_PENDING_FIELD_IDS.requestedDate]) ??
+            dateRawToMs(row?.[ADVANCE_REPORT_FIELD_IDS.requestedDate]) ??
+            dateRawToMs(row?._created_at)
+        )
+    }
+    return dateRawToMs(row?._created_at) ?? dateRawToMs(row?._modified_at)
+}
+
 function toDateText(value) {
     if (!value) return ''
     const d = new Date(value)
@@ -961,6 +983,20 @@ function GenericMobileCard({ row, cols, onOpen, selected, selectSlot }) {
                 </MobileField>
             ))}
         </MobileRecordCard>
+    )
+}
+
+function RowSelectBox({ id, checked, onToggle, label }) {
+    return (
+        <input
+            type="checkbox"
+            className="draft-checkbox"
+            aria-label={label}
+            checked={checked}
+            disabled={!id}
+            onClick={(event) => event.stopPropagation()}
+            onChange={() => onToggle(id)}
+        />
     )
 }
 
@@ -1556,6 +1592,7 @@ function PendingApprovalsWidgetInner({
     onSummaryChange,
     insightFilter = null,
     onClearInsight,
+    period: periodProp = null,
 } = {}) {
     const accountId = useMemo(() => kf?.account?._id, [])
     const appRoles = Array.isArray(kf?.user?.AppRoles)
@@ -1590,6 +1627,10 @@ function PendingApprovalsWidgetInner({
     const [tabInstanceActivityMap, setTabInstanceActivityMap] = useState({ expense: {}, advance: {}, travel: {} })
     const [error, setError] = useState('')
     const [searchId, setSearchId] = useState('')
+    const [selectedRowIds, setSelectedRowIds] = useState(() => new Set())
+    const [exportingCsv, setExportingCsv] = useState(false)
+    const [periodLocal, setPeriodLocal] = useState(() => getEmptyPeriodState())
+    const period = periodProp || periodLocal
     const [currentPage, setCurrentPage] = useState(1)
     const pageSize = 8
     const fetchSeqRef = useRef(0)
@@ -1931,12 +1972,15 @@ function PendingApprovalsWidgetInner({
 
         // Only pending items in current step.
         const map = tabInstanceActivityMap?.[activeTabKey] || {}
-        if (!map || Object.keys(map).length === 0) return base
-        return base.filter((row) => {
-            const { instanceId } = extractPopupIds(row)
-            return instanceId && Object.prototype.hasOwnProperty.call(map, instanceId)
-        })
-    }, [rows, searchId, activeTabKey, tabInstanceActivityMap])
+        const assigned =
+            !map || Object.keys(map).length === 0
+                ? base
+                : base.filter((row) => {
+                      const { instanceId } = extractPopupIds(row)
+                      return instanceId && Object.prototype.hasOwnProperty.call(map, instanceId)
+                  })
+        return assigned.filter((row) => requestedDateInPeriod(readRequestedAtMs(row, activeTabKey), period))
+    }, [rows, searchId, activeTabKey, tabInstanceActivityMap, period])
 
     const filteredRowsWithBreach = filteredRows
 
@@ -1999,8 +2043,103 @@ function PendingApprovalsWidgetInner({
     }, [activeTab?.key])
 
     useEffect(() => {
+        setCurrentPage(1)
+        setSelectedRowIds(new Set())
+    }, [period?.mode, period?.summaryLabel, period?.range?.from, period?.range?.to])
+
+    useEffect(() => {
         if (currentPage > totalPages) setCurrentPage(totalPages)
     }, [currentPage, totalPages])
+
+    useEffect(() => {
+        setSelectedRowIds(new Set())
+    }, [activeTabKey, searchId])
+
+    const resolveRowId = (row, idx = 0) =>
+        String(row?._id ?? row?.Column_RzqotquBQV ?? row?.InstanceId ?? row?.id ?? '').trim() || String(getRowId(row, idx))
+    const rowFromView = (entry) => entry?.row || entry
+    const pageRowIds = paginatedRows
+        .map((entry, idx) => resolveRowId(rowFromView(entry), idx))
+        .filter(Boolean)
+    const allPageSelected = pageRowIds.length > 0 && pageRowIds.every((id) => selectedRowIds.has(id))
+    const showRowSelect = paginationLength > 0
+    const exportSourceRows =
+        activeTabKey === 'expense' && expenseViewRows
+            ? expenseViewRows
+            : activeTabKey === 'advance' && advanceViewRows
+              ? advanceViewRows
+              : activeTabKey === 'travel' && travelViewRows
+                ? travelViewRows
+                : filteredRowsWithBreach
+
+    const toggleRowSelection = (id) => {
+        if (!id) return
+        setSelectedRowIds((previous) => {
+            const next = new Set(previous)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const toggleAllOnPage = (checked) => {
+        setSelectedRowIds((previous) => {
+            const next = new Set(previous)
+            pageRowIds.forEach((id) => {
+                if (checked) next.add(id)
+                else next.delete(id)
+            })
+            return next
+        })
+    }
+
+    const handleExportCsv = () => {
+        if (exportingCsv) return
+        const all = Array.isArray(exportSourceRows) ? exportSourceRows : []
+        const chosen = selectedRowIds.size
+            ? all.filter((entry) => selectedRowIds.has(resolveRowId(rowFromView(entry))))
+            : all
+        if (!chosen.length) {
+            kf?.client?.showInfo?.('No records to export.')
+            return
+        }
+        setExportingCsv(true)
+        try {
+            if (activeTabKey === 'expense' || activeTabKey === 'advance' || activeTabKey === 'travel') {
+                const mapped =
+                    activeTabKey === 'travel'
+                        ? chosen.map((entry) => {
+                              const route = splitTravelRoute(entry)
+                              return { ...entry, exportFrom: route.from, exportTo: route.to }
+                          })
+                        : chosen
+                const payload = buildProcessCsv(activeTabKey, mapped, formatINR)
+                downloadRecordsCsv({
+                    ...payload,
+                    filenameBase: `approver-${payload.filenameBase}`,
+                })
+            } else {
+                const headers = (cols || []).map((c) => c.Name)
+                downloadRecordsCsv({
+                    filenameBase: 'approver-records',
+                    headers,
+                    rows: chosen.map((entry) => {
+                        const row = rowFromView(entry)
+                        const out = {}
+                        ;(cols || []).forEach((c) => {
+                            out[c.Name] = toText(row?.[c.Id])
+                        })
+                        return out
+                    }),
+                })
+            }
+        } catch (error) {
+            console.warn('CSV export failed', error)
+            kf?.client?.showInfo?.('Export failed. Please try again.')
+        } finally {
+            setExportingCsv(false)
+        }
+    }
 
     const handleRowClick = async (row) => {
         const { instanceId, activityId } = resolveIdsFromListPayload(row)
@@ -2125,8 +2264,38 @@ function PendingApprovalsWidgetInner({
             </div>
 
             <div className="p-3 sm:p-4 lg:p-5">
-            <div className="mb-3">
-                <div className="flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 sm:rounded-xl sm:py-2">
+            {selectedRowIds.size > 0 ? (
+                <div className="draft-bulk-toolbar mb-3" role="status">
+                    <div className="draft-selection-count">
+                        <span className="draft-selection-icon" aria-hidden="true">
+                            <i className="ri-checkbox-multiple-line" />
+                        </span>
+                        <span>
+                            <strong>{selectedRowIds.size}</strong> selected
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            className="draft-clear-button"
+                            onClick={() => setSelectedRowIds(new Set())}
+                        >
+                            Clear
+                        </button>
+                        <button
+                            type="button"
+                            className="draft-export-button"
+                            onClick={handleExportCsv}
+                            disabled={exportingCsv}
+                        >
+                            <i className="ri-file-excel-2-line" aria-hidden />
+                            {exportingCsv ? 'Exporting…' : 'Export CSV'}
+                        </button>
+                    </div>
+                </div>
+            ) : null}
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 sm:rounded-xl sm:py-2">
                     <i className="ri-search-line text-base text-slate-400 sm:text-sm" />
                     <input
                         value={searchId}
@@ -2138,6 +2307,12 @@ function PendingApprovalsWidgetInner({
                         className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none sm:text-xs"
                     />
                 </div>
+                <RecordsExportMenu
+                    exporting={exportingCsv}
+                    selectedCount={selectedRowIds.size}
+                    totalCount={paginationLength}
+                    onExportCsv={handleExportCsv}
+                />
             </div>
 
             {showSkeleton ? (
@@ -2215,7 +2390,7 @@ function PendingApprovalsWidgetInner({
             ) : filteredRowsWithBreach.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
                     <p className="text-sm font-semibold text-slate-800">No matching pending records</p>
-                    <p className="mt-1 text-xs text-slate-500">Try a different ID or clear the search.</p>
+                    <p className="mt-1 text-xs text-slate-500">Try a different ID, or clear the search or date filter.</p>
                 </div>
             ) : activeKey === 'expense' ? (
                 <>
@@ -2229,6 +2404,17 @@ function PendingApprovalsWidgetInner({
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 1020 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
+                                {showRowSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all rows on this page"
+                                            checked={allPageSelected}
+                                            onChange={(event) => toggleAllOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {[
                                     { label: 'Expense ID', align: 'left' },
                                     { label: 'Request Date', align: 'left' },
@@ -2258,12 +2444,24 @@ function PendingApprovalsWidgetInner({
                             {paginatedRows.map((entry, idx) => {
                                 const tkey = normalizeExpenseTypeKey(entry.expenseType)
                                 const cfg = EXPENSE_TYPE_STYLE[tkey] || EXPENSE_TYPE_STYLE.other
+                                const rowId = resolveRowId(entry.row, idx)
+                                const isSelected = selectedRowIds.has(rowId)
                                 return (
                                     <tr
                                         key={getRowId(entry.row, idx)}
                                         onClick={() => handleRowClick(entry.row)}
-                                        className="records-data-row cursor-pointer"
+                                        className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                     >
+                                        {showRowSelect ? (
+                                            <td className="draft-select-cell">
+                                                <RowSelectBox
+                                                    id={rowId}
+                                                    checked={isSelected}
+                                                    onToggle={toggleRowSelection}
+                                                    label={`Select ${entry.expenseId || rowId}`}
+                                                />
+                                            </td>
+                                        ) : null}
                                         <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                             <span
                                                 className="record-id-badge inline-block max-w-[140px] truncate align-middle"
@@ -2306,14 +2504,29 @@ function PendingApprovalsWidgetInner({
                     </table>
                 </div>
                 <div className="records-mobile-cards space-y-2.5">
-                    {paginatedRows.map((entry, idx) => (
+                    {paginatedRows.map((entry, idx) => {
+                        const rowId = resolveRowId(entry.row, idx)
+                        const isSelected = selectedRowIds.has(rowId)
+                        return (
                         <ExpenseMobileCard
                             key={getRowId(entry.row, idx)}
                             entry={entry}
                             accent={tableAccent}
+                            selected={isSelected}
+                            selectSlot={
+                                showRowSelect ? (
+                                    <RowSelectBox
+                                        id={rowId}
+                                        checked={isSelected}
+                                        onToggle={toggleRowSelection}
+                                        label={`Select ${entry.expenseId || rowId}`}
+                                    />
+                                ) : null
+                            }
                             onOpen={() => handleRowClick(entry.row)}
                         />
-                    ))}
+                        )
+                    })}
                 </div>
                 </>
             ) : activeKey === 'advance' ? (
@@ -2328,6 +2541,17 @@ function PendingApprovalsWidgetInner({
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 980 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
+                                {showRowSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all rows on this page"
+                                            checked={allPageSelected}
+                                            onChange={(event) => toggleAllOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {[
                                     // { label: 'Request ID', align: 'left' },
                                     { label: 'Requested Date', align: 'left' },
@@ -2354,12 +2578,25 @@ function PendingApprovalsWidgetInner({
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedRows.map((entry, idx) => (
+                            {paginatedRows.map((entry, idx) => {
+                                const rowId = resolveRowId(entry.row, idx)
+                                const isSelected = selectedRowIds.has(rowId)
+                                return (
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="records-data-row cursor-pointer"
+                                    className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                 >
+                                    {showRowSelect ? (
+                                        <td className="draft-select-cell">
+                                            <RowSelectBox
+                                                id={rowId}
+                                                checked={isSelected}
+                                                onToggle={toggleRowSelection}
+                                                label={`Select ${rowId}`}
+                                            />
+                                        </td>
+                                    ) : null}
                                     {/*
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                         <span
@@ -2393,19 +2630,35 @@ function PendingApprovalsWidgetInner({
                                         <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
                                     </td>
                                 </tr>
-                            ))}
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
                 <div className="records-mobile-cards space-y-2.5">
-                    {paginatedRows.map((entry, idx) => (
+                    {paginatedRows.map((entry, idx) => {
+                        const rowId = resolveRowId(entry.row, idx)
+                        const isSelected = selectedRowIds.has(rowId)
+                        return (
                         <AdvanceMobileCard
                             key={getRowId(entry.row, idx)}
                             entry={entry}
                             accent={tableAccent}
+                            selected={isSelected}
+                            selectSlot={
+                                showRowSelect ? (
+                                    <RowSelectBox
+                                        id={rowId}
+                                        checked={isSelected}
+                                        onToggle={toggleRowSelection}
+                                        label={`Select ${rowId}`}
+                                    />
+                                ) : null
+                            }
                             onOpen={() => handleRowClick(entry.row)}
                         />
-                    ))}
+                        )
+                    })}
                 </div>
                 </>
             ) : activeKey === 'travel' ? (
@@ -2420,6 +2673,17 @@ function PendingApprovalsWidgetInner({
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 1080 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
+                                {showRowSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all rows on this page"
+                                            checked={allPageSelected}
+                                            onChange={(event) => toggleAllOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {[
                                     // { label: 'Request ID', align: 'left' },
                                     { label: 'Requestor', align: 'left' },
@@ -2449,12 +2713,25 @@ function PendingApprovalsWidgetInner({
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedRows.map((entry, idx) => (
+                            {paginatedRows.map((entry, idx) => {
+                                const rowId = resolveRowId(entry.row, idx)
+                                const isSelected = selectedRowIds.has(rowId)
+                                return (
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
-                                    className="records-data-row cursor-pointer"
+                                    className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                 >
+                                    {showRowSelect ? (
+                                        <td className="draft-select-cell">
+                                            <RowSelectBox
+                                                id={rowId}
+                                                checked={isSelected}
+                                                onToggle={toggleRowSelection}
+                                                label={`Select ${rowId}`}
+                                            />
+                                        </td>
+                                    ) : null}
                                     {/*
                                     <td className="px-3 py-2.5 align-middle" style={{ fontSize: 12, color: '#101828' }}>
                                         <span
@@ -2510,19 +2787,35 @@ function PendingApprovalsWidgetInner({
                                         <SlaCell deadlineAtMs={entry.deadlineAtMs} deadlineLabel={entry.deadlineText} size="sm" />
                                     </td>
                                 </tr>
-                            ))}
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
                 <div className="records-mobile-cards space-y-2.5">
-                    {paginatedRows.map((entry, idx) => (
+                    {paginatedRows.map((entry, idx) => {
+                        const rowId = resolveRowId(entry.row, idx)
+                        const isSelected = selectedRowIds.has(rowId)
+                        return (
                         <TravelMobileCard
                             key={getRowId(entry.row, idx)}
                             entry={entry}
                             accent={tableAccent}
+                            selected={isSelected}
+                            selectSlot={
+                                showRowSelect ? (
+                                    <RowSelectBox
+                                        id={rowId}
+                                        checked={isSelected}
+                                        onToggle={toggleRowSelection}
+                                        label={`Select ${rowId}`}
+                                    />
+                                ) : null
+                            }
                             onOpen={() => handleRowClick(entry.row)}
                         />
-                    ))}
+                        )
+                    })}
                 </div>
                 </>
             ) : (
@@ -2537,6 +2830,17 @@ function PendingApprovalsWidgetInner({
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
                         <thead>
                             <tr>
+                                {showRowSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all rows on this page"
+                                            checked={allPageSelected}
+                                            onChange={(event) => toggleAllOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {cols.map((c) => (
                                     <th
                                         key={c.Id}
@@ -2555,12 +2859,25 @@ function PendingApprovalsWidgetInner({
                             </tr>
                         </thead>
                         <tbody>
-                            {paginatedRows.map((row, idx) => (
+                            {paginatedRows.map((row, idx) => {
+                                const rowId = resolveRowId(row, idx)
+                                const isSelected = selectedRowIds.has(rowId)
+                                return (
                                 <tr
                                     key={getRowId(row, idx)}
                                     onClick={() => handleRowClick(row)}
-                                    className="records-data-row cursor-pointer"
+                                    className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                 >
+                                    {showRowSelect ? (
+                                        <td className="draft-select-cell">
+                                            <RowSelectBox
+                                                id={rowId}
+                                                checked={isSelected}
+                                                onToggle={toggleRowSelection}
+                                                label={`Select ${rowId}`}
+                                            />
+                                        </td>
+                                    ) : null}
                                     {cols.map((c) => (
                                         <td
                                             key={c.Id}
@@ -2577,19 +2894,35 @@ function PendingApprovalsWidgetInner({
                                         </td>
                                     ))}
                                 </tr>
-                            ))}
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
                 <div className="records-mobile-cards space-y-2.5">
-                    {paginatedRows.map((row, idx) => (
+                    {paginatedRows.map((row, idx) => {
+                        const rowId = resolveRowId(row, idx)
+                        const isSelected = selectedRowIds.has(rowId)
+                        return (
                         <GenericMobileCard
                             key={getRowId(row, idx)}
                             row={row}
                             cols={cols}
+                            selected={isSelected}
+                            selectSlot={
+                                showRowSelect ? (
+                                    <RowSelectBox
+                                        id={rowId}
+                                        checked={isSelected}
+                                        onToggle={toggleRowSelection}
+                                        label={`Select ${rowId}`}
+                                    />
+                                ) : null
+                            }
                             onOpen={() => handleRowClick(row)}
                         />
-                    ))}
+                        )
+                    })}
                 </div>
                 </>
             )}

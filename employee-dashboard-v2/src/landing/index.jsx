@@ -4,6 +4,7 @@ import { dashboardCardStats } from '../mocks/advances.js'
 // import ExpenseTrendsChart from './components/ExpenseTrendsChart.jsx'
 // import UpcomingTrips from './components/UpcomingTrips.jsx'
 import PendingApprovalsWidget from './components/PendingApprovalsWidget.jsx'
+import RecordsPeriodPicker, { getEmptyPeriodState } from './components/RecordsPeriodPicker.jsx'
 import {
     flightIcon,
     customTravelBookingIcon,
@@ -172,6 +173,8 @@ function MobileWelcomeCard({
     createOpen,
     onToggleCreate,
     onCreate,
+    period,
+    onPeriodChange,
 }) {
     return (
         <section className="mobile-welcome" aria-label="Welcome">
@@ -209,6 +212,17 @@ function MobileWelcomeCard({
                     >
                         <i className="ri-refresh-line" aria-hidden="true" />
                     </button>
+                    <RecordsPeriodPicker
+                        variant="icon"
+                        tone="light"
+                        mode={period?.mode}
+                        range={period?.range}
+                        ranges={period?.ranges}
+                        parts={period?.parts}
+                        fyStartYear={period?.fyStartYear}
+                        summaryLabel={period?.summaryLabel}
+                        onChange={onPeriodChange}
+                    />
                     <button
                         type="button"
                         className={`mobile-welcome-icon-btn${createOpen ? ' is-open' : ''}`}
@@ -277,6 +291,7 @@ export function DefaultLandingComponent() {
         travel: 0,
     })
     const [recordsFocus, setRecordsFocus] = useState(null)
+    const [recordsPeriod, setRecordsPeriod] = useState(() => getEmptyPeriodState())
     const recordsSectionRef = useRef(null)
     const recordsPulseTimerRef = useRef(null)
     /** Full user profile includes accurate `Company`; `kf.user.Company` may be empty — overwritten after `/user/2/...` fetch. */
@@ -837,6 +852,8 @@ export function DefaultLandingComponent() {
                     createOpen={actionOpen}
                     onToggleCreate={() => setActionOpen((open) => !open)}
                     onCreate={openPopup}
+                    period={recordsPeriod}
+                    onPeriodChange={setRecordsPeriod}
                 />
                 <div
                     className={`travel-hero rounded-xl sm:rounded-2xl relative animate-fade-in-up border border-white/80 ${actionOpen ? 'is-create-open' : ''}`}
@@ -931,6 +948,19 @@ export function DefaultLandingComponent() {
                         </div>
 
                         <div className="travel-hero-aside">
+                            <div className="travel-hero-period">
+                                <RecordsPeriodPicker
+                                    variant="icon"
+                                    tone="hero"
+                                    mode={recordsPeriod.mode}
+                                    range={recordsPeriod.range}
+                                    ranges={recordsPeriod.ranges}
+                                    parts={recordsPeriod.parts}
+                                    fyStartYear={recordsPeriod.fyStartYear}
+                                    summaryLabel={recordsPeriod.summaryLabel}
+                                    onChange={setRecordsPeriod}
+                                />
+                            </div>
                             {isCompactHero ? (
                                 <div className={`create-tray ${actionOpen ? 'is-open' : ''}`}>
                                     <button
@@ -1470,6 +1500,7 @@ export function DefaultLandingComponent() {
                         onPopupClosed={refreshAll}
                         insightFilter={recordsFocus}
                         onClearInsight={clearRecordsFocus}
+                        period={recordsPeriod}
                     />
                 </div>
             </div>

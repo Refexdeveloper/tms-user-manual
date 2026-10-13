@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { kf } from './../sdk/index.js'
 import PendingApprovalsWidget from './components/PendingApprovalsWidget.jsx'
+import RecordsPeriodPicker, { getEmptyPeriodState } from './components/RecordsPeriodPicker.jsx'
 import SatelliteCreateMenu from './components/SatelliteCreateMenu.jsx'
 import {
     flightIcon,
@@ -294,6 +295,8 @@ function MobileWelcomeCard({
     createOpen,
     onToggleCreate,
     onCreate,
+    period,
+    onPeriodChange,
 }) {
     return (
         <section className="mobile-welcome" aria-label="Welcome">
@@ -326,6 +329,17 @@ function MobileWelcomeCard({
                     >
                         <i className="ri-refresh-line" aria-hidden="true" />
                     </button>
+                    <RecordsPeriodPicker
+                        variant="icon"
+                        tone="light"
+                        mode={period?.mode}
+                        range={period?.range}
+                        ranges={period?.ranges}
+                        parts={period?.parts}
+                        fyStartYear={period?.fyStartYear}
+                        summaryLabel={period?.summaryLabel}
+                        onChange={onPeriodChange}
+                    />
                     <button
                         type="button"
                         className={`mobile-welcome-icon-btn${createOpen ? ' is-open' : ''}`}
@@ -376,6 +390,7 @@ export function DefaultLandingComponent() {
         exception: { expense: 0, advance: 0, travel: 0 },
     })
     const [recordsFocus, setRecordsFocus] = useState(null)
+    const [recordsPeriod, setRecordsPeriod] = useState(() => getEmptyPeriodState())
     const recordsSectionRef = useRef(null)
     const recordsPulseTimerRef = useRef(null)
 
@@ -617,6 +632,8 @@ export function DefaultLandingComponent() {
                         setCreateOpen(false)
                         openCreatePopup(key)
                     }}
+                    period={recordsPeriod}
+                    onPeriodChange={setRecordsPeriod}
                 />
                 <div
                     className="travel-hero rounded-xl sm:rounded-2xl mb-2.5 sm:mb-6 relative animate-fade-in-up border border-white/80"
@@ -691,6 +708,19 @@ export function DefaultLandingComponent() {
                         </div>
 
                         <div className="travel-hero-aside">
+                            <div className="travel-hero-period">
+                                <RecordsPeriodPicker
+                                    variant="icon"
+                                    tone="hero"
+                                    mode={recordsPeriod.mode}
+                                    range={recordsPeriod.range}
+                                    ranges={recordsPeriod.ranges}
+                                    parts={recordsPeriod.parts}
+                                    fyStartYear={recordsPeriod.fyStartYear}
+                                    summaryLabel={recordsPeriod.summaryLabel}
+                                    onChange={setRecordsPeriod}
+                                />
+                            </div>
                             <SatelliteCreateMenu onCreate={openCreatePopup} />
                             <div
                                 className="travel-hero-scope travel-hero-scope--aside inline-flex flex-shrink-0 gap-0.5 rounded-xl p-0.5"
@@ -777,6 +807,7 @@ export function DefaultLandingComponent() {
                         onPopupClosed={refreshAll}
                         insightFilter={recordsFocus}
                         onClearInsight={clearRecordsFocus}
+                        period={recordsPeriod}
                         onSummaryChange={({ pendingCounts: p, nearingSla, breachedSla, exception }) => {
                             if (p) setPendingCounts(p)
                             setSlaSummary({

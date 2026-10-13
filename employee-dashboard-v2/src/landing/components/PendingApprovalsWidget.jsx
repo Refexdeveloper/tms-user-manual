@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { kf } from '../../sdk/index.js'
 import CurrentStepBadges from './CurrentStepBadges.jsx'
 import SlaCell from './SlaCell.jsx'
+import { getEmptyPeriodState, requestedDateInPeriod } from './RecordsPeriodPicker.jsx'
+import RecordsExportMenu from './RecordsExportMenu.jsx'
+import { buildProcessCsv, downloadRecordsCsv } from '../../lib/exportRecordsCsv.js'
 import {
     customPendingRequestsIcon,
     customTravelBookingIcon,
@@ -680,6 +683,25 @@ function dateRawToMs(raw) {
     return Number.isNaN(d.getTime()) ? null : d.getTime()
 }
 
+/** Expense/Advance Requested Date; Travel Booking uses created-at as the request date. */
+function readRequestedAtMs(row, tabKey) {
+    if (tabKey === 'expense') {
+        return (
+            dateRawToMs(row?.[EXPENSE_PROCESS_FIELD_IDS.requestDate]) ??
+            dateRawToMs(row?.[EXPENSE_REPORT_FIELD_IDS.requestDate]) ??
+            dateRawToMs(row?._created_at)
+        )
+    }
+    if (tabKey === 'advance') {
+        return (
+            dateRawToMs(row?.[ADVANCE_PROCESS_FIELD_IDS.requestedDate]) ??
+            dateRawToMs(row?.[ADVANCE_REPORT_FIELD_IDS.requestedDate]) ??
+            dateRawToMs(row?._created_at)
+        )
+    }
+    return dateRawToMs(row?._created_at) ?? dateRawToMs(row?._modified_at)
+}
+
 function toDateText(value) {
     if (!value) return ''
     const d = new Date(value)
@@ -1334,6 +1356,7 @@ export default function PendingApprovalsWidget({
     onPopupClosed,
     insightFilter = null,
     onClearInsight,
+    period: periodProp = null,
 } = {}) {
     const accountId = useMemo(() => kf?.account?._id, [])
     const [scopeKey, setScopeKey] = useState('myItems')
@@ -1353,9 +1376,12 @@ export default function PendingApprovalsWidget({
     const [tabInstanceActivityMap, setTabInstanceActivityMap] = useState({ expense: {}, advance: {}, travel: {} })
     const [error, setError] = useState('')
     const [searchId, setSearchId] = useState('')
+    const [periodLocal, setPeriodLocal] = useState(() => getEmptyPeriodState())
+    const period = periodProp || periodLocal
     const [currentPage, setCurrentPage] = useState(1)
     const [selectedDraftIds, setSelectedDraftIds] = useState(() => new Set())
     const [deletingDrafts, setDeletingDrafts] = useState(false)
+    const [exportingCsv, setExportingCsv] = useState(false)
     const [insightStatuses, setInsightStatuses] = useState(null)
     const pageSize = 8
     const fetchSeqRef = useRef(0)
@@ -1846,9 +1872,9 @@ export default function PendingApprovalsWidget({
     const getRowId = (row, idx) => row?._id || row?.Column_RzqotquBQV || `${activeTab.key}-${idx}`
     const filteredRows = useMemo(() => {
         const q = String(searchId || '').trim().toLowerCase()
-        if (!q) return rows
-        return rows.filter((row, idx) => String(getRowId(row, idx)).toLowerCase().includes(q))
-    }, [rows, searchId, activeTab.key])
+        const afterSearch = !q ? rows : rows.filter((row, idx) => String(getRowId(row, idx)).toLowerCase().includes(q))
+        return afterSearch.filter((row) => requestedDateInPeriod(readRequestedAtMs(row, activeTab.key), period))
+    }, [rows, searchId, activeTab.key, period])
 
     const expenseFieldIds = useMemo(() => resolveExpenseFieldIds(rawCols), [rawCols])
 
@@ -1920,18 +1946,80 @@ export default function PendingApprovalsWidget({
     }, [activeKey, scopeKey, myItemsStatus])
 
     useEffect(() => {
+        setCurrentPage(1)
+        setSelectedDraftIds(new Set())
+    }, [period?.mode, period?.summaryLabel, period?.range?.from, period?.range?.to])
+
+    useEffect(() => {
         if (currentPage > totalPages) setCurrentPage(totalPages)
     }, [currentPage, totalPages])
 
     const showDraftBulkSelect = scopeKey === 'myItems' && myItemsStatus === 'Draft'
+    const showRowSelect = paginationLength > 0
     const resolveDraftDeleteId = (row) =>
         String(row?._id ?? row?.InstanceID ?? row?.InstanceId ?? row?.id ?? '').trim()
     const rowFromView = (entry) => entry?.row || entry
-    const draftPageRowIds = showDraftBulkSelect
+    const draftPageRowIds = showRowSelect
         ? paginatedRows.map((entry) => resolveDraftDeleteId(rowFromView(entry))).filter(Boolean)
         : []
     const allDraftRowsSelected =
         draftPageRowIds.length > 0 && draftPageRowIds.every((id) => selectedDraftIds.has(id))
+    const exportSourceRows =
+        activeTab.key === 'expense' && expenseViewRows
+            ? expenseViewRows
+            : activeTab.key === 'advance' && advanceViewRows
+              ? advanceViewRows
+              : activeTab.key === 'travel' && travelViewRows
+                ? travelViewRows
+                : filteredRows
+
+    const handleExportCsv = () => {
+        if (exportingCsv) return
+        const all = Array.isArray(exportSourceRows) ? exportSourceRows : []
+        const chosen = selectedDraftIds.size
+            ? all.filter((entry) => selectedDraftIds.has(resolveDraftDeleteId(rowFromView(entry))))
+            : all
+        if (!chosen.length) {
+            kf?.client?.showInfo?.('No records to export.')
+            return
+        }
+        setExportingCsv(true)
+        try {
+            if (activeTab.key === 'expense' || activeTab.key === 'advance' || activeTab.key === 'travel') {
+                const mapped =
+                    activeTab.key === 'travel'
+                        ? chosen.map((entry) => {
+                              const route = splitTravelRoute(entry)
+                              return { ...entry, exportFrom: route.from, exportTo: route.to }
+                          })
+                        : chosen
+                const payload = buildProcessCsv(activeTab.key, mapped, formatINR)
+                downloadRecordsCsv({
+                    ...payload,
+                    filenameBase: `employee-${payload.filenameBase}`,
+                })
+            } else {
+                const headers = (cols || []).map((c) => c.Name)
+                downloadRecordsCsv({
+                    filenameBase: 'employee-records',
+                    headers,
+                    rows: chosen.map((entry) => {
+                        const row = rowFromView(entry)
+                        const out = {}
+                        ;(cols || []).forEach((c) => {
+                            out[c.Name] = toText(row?.[c.Id])
+                        })
+                        return out
+                    }),
+                })
+            }
+        } catch (error) {
+            console.warn('CSV export failed', error)
+            kf?.client?.showInfo?.('Export failed. Please try again.')
+        } finally {
+            setExportingCsv(false)
+        }
+    }
 
     const toggleDraftSelection = (id) => {
         if (!id) return
@@ -2212,7 +2300,7 @@ export default function PendingApprovalsWidget({
                 ) : null}
             </div>
             <div className="p-3 sm:p-4 lg:p-5">
-            {showDraftBulkSelect && selectedDraftIds.size > 0 ? (
+            {selectedDraftIds.size > 0 ? (
                 <div className="draft-bulk-toolbar mb-3" role="status">
                     <div className="draft-selection-count">
                         <span className="draft-selection-icon" aria-hidden="true">
@@ -2233,6 +2321,16 @@ export default function PendingApprovalsWidget({
                         </button>
                         <button
                             type="button"
+                            className="draft-export-button"
+                            onClick={handleExportCsv}
+                            disabled={exportingCsv}
+                        >
+                            <i className="ri-file-excel-2-line" aria-hidden />
+                            {exportingCsv ? 'Exporting…' : 'Export CSV'}
+                        </button>
+                        {showDraftBulkSelect ? (
+                        <button
+                            type="button"
                             className="draft-delete-button"
                             onClick={handleDeleteSelectedDrafts}
                             disabled={deletingDrafts}
@@ -2247,11 +2345,12 @@ export default function PendingApprovalsWidget({
                             />
                             {deletingDrafts ? 'Deleting…' : `Delete (${selectedDraftIds.size})`}
                         </button>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
-            <div className="mb-3">
-                <div className="flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 sm:rounded-xl sm:py-2">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-3 py-2.5 shadow-sm focus-within:border-[#2879b6] focus-within:ring-2 focus-within:ring-[#2879b6]/20 sm:rounded-xl sm:py-2">
                     <i className="ri-search-line text-base text-slate-400 sm:text-sm" />
                     <input
                         value={searchId}
@@ -2263,6 +2362,12 @@ export default function PendingApprovalsWidget({
                         className="w-full bg-transparent text-sm text-slate-700 placeholder:text-slate-400 outline-none sm:text-xs"
                     />
                 </div>
+                <RecordsExportMenu
+                    exporting={exportingCsv}
+                    selectedCount={selectedDraftIds.size}
+                    totalCount={paginationLength}
+                    onExportCsv={handleExportCsv}
+                />
             </div>
 
             {showSkeleton ? (
@@ -2342,7 +2447,7 @@ export default function PendingApprovalsWidget({
             ) : filteredRows.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
                     <p className="text-sm font-semibold text-slate-800">No matching pending records</p>
-                    <p className="mt-1 text-xs text-slate-500">Try a different ID or clear the search.</p>
+                    <p className="mt-1 text-xs text-slate-500">Try a different ID, or clear the search or date filter.</p>
                 </div>
             ) : activeKey === 'expense' ? (
                 <>
@@ -2356,7 +2461,7 @@ export default function PendingApprovalsWidget({
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 1020 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
-                                {showDraftBulkSelect ? (
+                                {showRowSelect ? (
                                     <th className="draft-select-cell">
                                         <input
                                             type="checkbox"
@@ -2397,14 +2502,14 @@ export default function PendingApprovalsWidget({
                                 const tkey = normalizeExpenseTypeKey(entry.expenseType)
                                 const cfg = EXPENSE_TYPE_STYLE[tkey] || EXPENSE_TYPE_STYLE.other
                                 const draftId = resolveDraftDeleteId(entry.row)
-                                const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                                const isSelected = showRowSelect && selectedDraftIds.has(draftId)
                                 return (
                                     <tr
                                         key={getRowId(entry.row, idx)}
                                         onClick={() => handleRowClick(entry.row)}
                                         className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                     >
-                                        {showDraftBulkSelect ? (
+                                        {showRowSelect ? (
                                             <td className="draft-select-cell">
                                                 <input
                                                     type="checkbox"
@@ -2463,7 +2568,7 @@ export default function PendingApprovalsWidget({
                 <div className="records-mobile-cards space-y-2.5">
                     {paginatedRows.map((entry, idx) => {
                         const draftId = resolveDraftDeleteId(entry.row)
-                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        const isSelected = showRowSelect && selectedDraftIds.has(draftId)
                         return (
                             <ExpenseMobileCard
                                 key={getRowId(entry.row, idx)}
@@ -2471,7 +2576,7 @@ export default function PendingApprovalsWidget({
                                 accent={activeTab.color}
                                 selected={isSelected}
                                 selectSlot={
-                                    showDraftBulkSelect ? (
+                                    showRowSelect ? (
                                         <DraftSelectBox
                                             id={draftId}
                                             checked={isSelected}
@@ -2498,7 +2603,7 @@ export default function PendingApprovalsWidget({
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 980 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
-                                {showDraftBulkSelect ? (
+                                {showRowSelect ? (
                                     <th className="draft-select-cell">
                                         <input
                                             type="checkbox"
@@ -2540,13 +2645,13 @@ export default function PendingApprovalsWidget({
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
                                     className={`records-data-row cursor-pointer ${
-                                        showDraftBulkSelect &&
+                                        showRowSelect &&
                                         selectedDraftIds.has(resolveDraftDeleteId(entry.row))
                                             ? 'is-selected'
                                             : ''
                                     }`}
                                 >
-                                    {showDraftBulkSelect ? (
+                                    {showRowSelect ? (
                                         <td className="draft-select-cell">
                                             <input
                                                 type="checkbox"
@@ -2601,7 +2706,7 @@ export default function PendingApprovalsWidget({
                 <div className="records-mobile-cards space-y-2.5">
                     {paginatedRows.map((entry, idx) => {
                         const draftId = resolveDraftDeleteId(entry.row)
-                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        const isSelected = showRowSelect && selectedDraftIds.has(draftId)
                         return (
                             <AdvanceMobileCard
                                 key={getRowId(entry.row, idx)}
@@ -2609,7 +2714,7 @@ export default function PendingApprovalsWidget({
                                 accent={activeTab.color}
                                 selected={isSelected}
                                 selectSlot={
-                                    showDraftBulkSelect ? (
+                                    showRowSelect ? (
                                         <DraftSelectBox
                                             id={draftId}
                                             checked={isSelected}
@@ -2636,7 +2741,7 @@ export default function PendingApprovalsWidget({
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 1080 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
-                                {showDraftBulkSelect ? (
+                                {showRowSelect ? (
                                     <th className="draft-select-cell">
                                         <input
                                             type="checkbox"
@@ -2678,14 +2783,14 @@ export default function PendingApprovalsWidget({
                         <tbody>
                             {paginatedRows.map((entry, idx) => {
                                 const draftId = resolveDraftDeleteId(entry.row)
-                                const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                                const isSelected = showRowSelect && selectedDraftIds.has(draftId)
                                 return (
                                 <tr
                                     key={getRowId(entry.row, idx)}
                                     onClick={() => handleRowClick(entry.row)}
                                     className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                 >
-                                    {showDraftBulkSelect ? (
+                                    {showRowSelect ? (
                                         <td className="draft-select-cell">
                                             <input
                                                 type="checkbox"
@@ -2763,7 +2868,7 @@ export default function PendingApprovalsWidget({
                 <div className="records-mobile-cards space-y-2.5">
                     {paginatedRows.map((entry, idx) => {
                         const draftId = resolveDraftDeleteId(entry.row)
-                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        const isSelected = showRowSelect && selectedDraftIds.has(draftId)
                         return (
                             <TravelMobileCard
                                 key={getRowId(entry.row, idx)}
@@ -2771,7 +2876,7 @@ export default function PendingApprovalsWidget({
                                 accent={activeTab.color}
                                 selected={isSelected}
                                 selectSlot={
-                                    showDraftBulkSelect ? (
+                                    showRowSelect ? (
                                         <DraftSelectBox
                                             id={draftId}
                                             checked={isSelected}
@@ -2798,7 +2903,7 @@ export default function PendingApprovalsWidget({
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
                         <thead>
                             <tr>
-                                {showDraftBulkSelect ? (
+                                {showRowSelect ? (
                                     <th className="draft-select-cell">
                                         <input
                                             type="checkbox"
@@ -2836,13 +2941,13 @@ export default function PendingApprovalsWidget({
                                     key={getRowId(row, idx)}
                                     onClick={() => handleRowClick(row)}
                                     className={`records-data-row cursor-pointer ${
-                                        showDraftBulkSelect &&
+                                        showRowSelect &&
                                         selectedDraftIds.has(resolveDraftDeleteId(row))
                                             ? 'is-selected'
                                             : ''
                                     }`}
                                 >
-                                    {showDraftBulkSelect ? (
+                                    {showRowSelect ? (
                                         <td className="draft-select-cell">
                                             <input
                                                 type="checkbox"
@@ -2882,7 +2987,7 @@ export default function PendingApprovalsWidget({
                 <div className="records-mobile-cards space-y-2.5">
                     {paginatedRows.map((row, idx) => {
                         const draftId = resolveDraftDeleteId(row)
-                        const isSelected = showDraftBulkSelect && selectedDraftIds.has(draftId)
+                        const isSelected = showRowSelect && selectedDraftIds.has(draftId)
                         return (
                             <GenericMobileCard
                                 key={getRowId(row, idx)}
@@ -2890,7 +2995,7 @@ export default function PendingApprovalsWidget({
                                 cols={cols}
                                 selected={isSelected}
                                 selectSlot={
-                                    showDraftBulkSelect ? (
+                                    showRowSelect ? (
                                         <DraftSelectBox
                                             id={draftId}
                                             checked={isSelected}

@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import CurrentStepBadges from './CurrentStepBadges.jsx'
 import SlaCell from './SlaCell.jsx'
+import RecordsExportMenu from './RecordsExportMenu.jsx'
+import { buildProcessCsv, downloadRecordsCsv } from '../../lib/exportRecordsCsv.js'
 import { ExpenseTypeGlyph } from './ExpenseGlyphs.jsx'
 import { customPendingRequestsIcon } from '../../../../raghul_icons/index.js'
 import {
@@ -87,16 +89,30 @@ function MobileField({ label, children, stacked = false }) {
     )
 }
 
-function ExpenseRecordCard({ expense, tableAccent, onOpen }) {
+function RowSelectBox({ id, checked, onToggle, label }) {
+    return (
+        <input
+            type="checkbox"
+            className="draft-checkbox"
+            aria-label={label}
+            checked={checked}
+            disabled={!id}
+            onClick={(event) => event.stopPropagation()}
+            onChange={() => onToggle(id)}
+        />
+    )
+}
+
+function ExpenseRecordCard({ expense, tableAccent, onOpen, selected = false, selectSlot = null }) {
     const { typeLabel, cfg, employeeName, initials } = getExpenseRowView(expense)
 
     return (
-        <button
-            type="button"
-            onClick={() => onOpen?.(expense)}
-            className="expense-record-card"
+        <div
+            className={`expense-record-card${selected ? ' is-selected' : ''}`}
             style={{ '--type-accent': cfg.colorFrom }}
         >
+            {selectSlot ? <div className="expense-record-card-select">{selectSlot}</div> : null}
+            <button type="button" className="expense-record-card-body" onClick={() => onOpen?.(expense)}>
             <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2">
                 <div className="min-w-0 flex-1">
                     <span className="record-id-badge inline-block max-w-full truncate" title={expense.id}>
@@ -145,7 +161,8 @@ function ExpenseRecordCard({ expense, tableAccent, onOpen }) {
                     />
                 </MobileField>
             </div>
-        </button>
+            </button>
+        </div>
     )
 }
 
@@ -185,12 +202,15 @@ export default function ExpenseTable({
     const [currentPage, setCurrentPage] = useState(1)
     const [slaFilter, setSlaFilter] = useState('all') // 'all' | 'nearing' | 'breached'
     const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+    const [selectedRowIds, setSelectedRowIds] = useState(() => new Set())
+    const [exportingCsv, setExportingCsv] = useState(false)
     const dropdownRef = useRef(null)
     const pageSize = 8
 
     useEffect(() => {
         setCurrentPage(1)
-    }, [statusFilter])
+        setSelectedRowIds(new Set())
+    }, [statusFilter, categoryFilter, slaFilter, searchQuery])
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -265,6 +285,50 @@ export default function ExpenseTable({
         if (setCategoryFilter) setCategoryFilter(key)
         if (setActiveTypeFilter) setActiveTypeFilter(key === 'all' ? null : key)
         setCurrentPage(1)
+        setSelectedRowIds(new Set())
+    }
+
+    const resolveRowId = (expense, idx = 0) => String(expense?.id || expense?._id || `expense-${idx}`)
+    const pageRowIds = paginatedRows.map((expense, idx) => resolveRowId(expense, idx)).filter(Boolean)
+    const allPageSelected = pageRowIds.length > 0 && pageRowIds.every((id) => selectedRowIds.has(id))
+    const showRowSelect = sortedRows.length > 0
+
+    const toggleRowSelection = (id) => {
+        if (!id) return
+        setSelectedRowIds((previous) => {
+            const next = new Set(previous)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const toggleAllOnPage = (checked) => {
+        setSelectedRowIds((previous) => {
+            const next = new Set(previous)
+            pageRowIds.forEach((id) => {
+                if (checked) next.add(id)
+                else next.delete(id)
+            })
+            return next
+        })
+    }
+
+    const handleExportCsv = () => {
+        if (exportingCsv) return
+        const chosen = selectedRowIds.size
+            ? sortedRows.filter((expense) => selectedRowIds.has(resolveRowId(expense)))
+            : sortedRows
+        if (!chosen.length) return
+        setExportingCsv(true)
+        try {
+            const payload = buildProcessCsv('expenseClaims', chosen, formatINR)
+            downloadRecordsCsv(payload)
+        } catch (error) {
+            console.warn('CSV export failed', error)
+        } finally {
+            setExportingCsv(false)
+        }
     }
 
     const hasActiveFilters = Boolean(searchQuery || (categoryFilter && categoryFilter !== 'all') || slaFilter !== 'all' || statusFilter)
@@ -276,6 +340,7 @@ export default function ExpenseTable({
         setSlaFilter('all')
         onClearInsight?.()
         setCurrentPage(1)
+        setSelectedRowIds(new Set())
     }
 
     const titleText = expenseRoleCopy?.pendingListTitle || 'Pending Requests'
@@ -345,6 +410,36 @@ export default function ExpenseTable({
 
             {/* ─── Toolbar: Search, Category Dropdown, and SLA status chips ────────── */}
             <div className="p-3.5 sm:p-4 lg:p-5">
+                {selectedRowIds.size > 0 ? (
+                    <div className="draft-bulk-toolbar mb-3" role="status">
+                        <div className="draft-selection-count">
+                            <span className="draft-selection-icon" aria-hidden="true">
+                                <i className="ri-checkbox-multiple-line" />
+                            </span>
+                            <span>
+                                <strong>{selectedRowIds.size}</strong> selected
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                className="draft-clear-button"
+                                onClick={() => setSelectedRowIds(new Set())}
+                            >
+                                Clear
+                            </button>
+                            <button
+                                type="button"
+                                className="draft-export-button"
+                                onClick={handleExportCsv}
+                                disabled={exportingCsv}
+                            >
+                                <i className="ri-file-excel-2-line" aria-hidden />
+                                {exportingCsv ? 'Exporting…' : 'Export CSV'}
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
                 <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between flex-wrap">
                     {/* Search bar */}
                     <div className="flex items-center gap-2 rounded-xl sm:rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2 sm:py-2.5 shadow-sm focus-within:border-[#1E88E5] focus-within:ring-2 focus-within:ring-[#1E88E5]/20 flex-1 min-w-[220px]">
@@ -458,6 +553,12 @@ export default function ExpenseTable({
                                 Breached
                             </button>
                         </div>
+                        <RecordsExportMenu
+                            exporting={exportingCsv}
+                            selectedCount={selectedRowIds.size}
+                            totalCount={sortedRows.length}
+                            onExportCsv={handleExportCsv}
+                        />
                     </div>
                 </div>
 
@@ -490,6 +591,17 @@ export default function ExpenseTable({
                     <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 980 }}>
                         <thead>
                             <tr style={{ borderBottom: '1px solid #EAECF0' }}>
+                                {showRowSelect ? (
+                                    <th className="draft-select-cell">
+                                        <input
+                                            type="checkbox"
+                                            className="draft-checkbox"
+                                            aria-label="Select all rows on this page"
+                                            checked={allPageSelected}
+                                            onChange={(event) => toggleAllOnPage(event.target.checked)}
+                                        />
+                                    </th>
+                                ) : null}
                                 {[
                                     { label: 'Expense ID', align: 'left' },
                                     { label: 'Requested Date', align: 'left' },
@@ -518,13 +630,25 @@ export default function ExpenseTable({
                         <tbody>
                                 {paginatedRows.map((expense, idx) => {
                                     const { typeLabel, cfg, employeeName, initials } = getExpenseRowView(expense)
+                                    const rowId = resolveRowId(expense, idx)
+                                    const isSelected = selectedRowIds.has(rowId)
 
                                     return (
                                         <tr
                                             key={expense.id || idx}
                                             onClick={() => onRowClick?.(expense)}
-                                            className="records-data-row cursor-pointer"
+                                            className={`records-data-row cursor-pointer ${isSelected ? 'is-selected' : ''}`}
                                         >
+                                            {showRowSelect ? (
+                                                <td className="draft-select-cell">
+                                                    <RowSelectBox
+                                                        id={rowId}
+                                                        checked={isSelected}
+                                                        onToggle={toggleRowSelection}
+                                                        label={`Select ${expense.id || rowId}`}
+                                                    />
+                                                </td>
+                                            ) : null}
                                             {/* Expense ID */}
                                             <td className="px-3.5 py-2.5 align-middle">
                                                 <span
@@ -607,14 +731,29 @@ export default function ExpenseTable({
                 </div>
 
                 <div className="records-mobile-cards space-y-2.5">
-                    {paginatedRows.map((expense, idx) => (
+                    {paginatedRows.map((expense, idx) => {
+                        const rowId = resolveRowId(expense, idx)
+                        const isSelected = selectedRowIds.has(rowId)
+                        return (
                         <ExpenseRecordCard
                             key={expense.id || idx}
                             expense={expense}
                             tableAccent={tableAccent}
+                            selected={isSelected}
+                            selectSlot={
+                                showRowSelect ? (
+                                    <RowSelectBox
+                                        id={rowId}
+                                        checked={isSelected}
+                                        onToggle={toggleRowSelection}
+                                        label={`Select ${expense.id || rowId}`}
+                                    />
+                                ) : null
+                            }
                             onOpen={onRowClick}
                         />
-                    ))}
+                        )
+                    })}
                 </div>
                     </>
                 )}
